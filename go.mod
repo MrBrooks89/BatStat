@@ -1,4 +1,4 @@
-module github.com/sureshkrishnan-v/BatStat
+module github.com/MrBrooks89/BatStat
 
 go 1.25.1
 
