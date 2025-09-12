@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"github.com/Mrbrooks89/BatStat/internal/actions"
+	"github.com/MrBrooks89/BatStat/internal/actions"
 	"github.com/gdamore/tcell/v2"
 )
 

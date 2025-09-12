@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"github.com/Mrbrooks89/BatStat/internal/conn"
+	"github.com/MrBrooks89/BatStat/internal/conn"
 	"github.com/rivo/tview"
 )
 

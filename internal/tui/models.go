@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Mrbrooks89/BatStat/internal/actions"
-	"github.com/Mrbrooks89/BatStat/internal/models"
+	"github.com/MrBrooks89/BatStat/internal/actions"
+	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

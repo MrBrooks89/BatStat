@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/Mrbrooks89/BatStat/internal/tui"
+	"github.com/MrBrooks89/BatStat/internal/tui"
 )
 
 func main() {
