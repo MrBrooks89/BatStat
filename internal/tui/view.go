@@ -9,7 +9,6 @@ import (
 	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
-// View represents the main UI of the application. It holds all the tview components.
 type View struct {
 	app         *App
 	table       *tview.Table
@@ -49,7 +48,6 @@ func NewView(app *App) *View {
 	return v
 }
 
-// Init sets up the layout and makes the view visible.
 func (v *View) Init() {
 	mainFlex := tview.NewFlex().
 		AddItem(v.table, 0, 1, true).
@@ -65,7 +63,6 @@ func (v *View) Init() {
 	v.app.tviewApp.SetRoot(v.pages, true).EnableMouse(true)
 }
 
-// Refresh re-draws the main table and details view with the latest data from the app state.
 func (v *View) Refresh() {
 	v.populateTable()
 	v.updateHeaderIndicator()
@@ -73,7 +70,6 @@ func (v *View) Refresh() {
 	v.updateDetailsView(selectedRow)
 }
 
-// GetSelectedConnection returns the connection object for the currently selected row in the table.
 func (v *View) GetSelectedConnection() *models.Connection {
 	row, _ := v.table.GetSelection()
 	if row < 1 {
@@ -86,13 +82,11 @@ func (v *View) GetSelectedConnection() *models.Connection {
 	return &conns[row-1]
 }
 
-// ShowInfoModal displays a short-lived informational message to the user.
 func (v *View) ShowInfoModal(message string, duration int) {
 	modal := tview.NewModal().
 		SetText(message).
 		AddButtons([]string{"OK"})
 
-	// Automatically close the modal after a duration
 	go func() {
 		<-time.After(time.Duration(duration) * time.Second) // corrected
 		v.app.tviewApp.QueueUpdateDraw(func() {
@@ -107,7 +101,6 @@ func (v *View) ShowInfoModal(message string, duration int) {
 	v.pages.AddPage("info_modal", modal, true, true)
 }
 
-// SetStatusMessage updates the hint view with a temporary message.
 func (v *View) SetStatusMessage(message string) {
 	originalText := v.hintView.GetText(false)
 	v.hintView.SetText(fmt.Sprintf("[yellow]Status: [white]%s", message))

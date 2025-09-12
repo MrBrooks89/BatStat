@@ -7,11 +7,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// setKeybindings configures all the key event handlers for the application.
 func (a *App) setKeybindings() {
-	// Global keybindings
 	a.tviewApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// If the filter input has focus, let it handle the key event
 		if a.view.filterInput.HasFocus() {
 			return event
 		}
@@ -29,13 +26,13 @@ func (a *App) setKeybindings() {
 			a.view.Refresh()
 			return nil
 		case 'r':
-			go a.loadData() // Refresh data in the background
+			go a.loadData() 
 			return nil
 		case 'k':
-			a.view.showKillConfirmationModal(false) // false for regular kill
+			a.view.showKillConfirmationModal(false) 
 			return nil
 		case 'K':
-			a.view.showKillConfirmationModal(true) // true for force kill
+			a.view.showKillConfirmationModal(true) 
 			return nil
 		case 'p':
 			a.view.showPingModal()
@@ -53,19 +50,16 @@ func (a *App) setKeybindings() {
 		return event
 	})
 
-	// Handler for when the selection in the table changes
 	a.view.table.SetSelectionChangedFunc(func(row, column int) {
 		a.view.updateDetailsView(row)
 	})
 
-	// Handler for when the user presses Enter on a table row
 	a.view.table.SetSelectedFunc(func(row, column int) {
 		if conn := a.view.GetSelectedConnection(); conn != nil {
 			a.view.showDetailsModal(*conn)
 		}
 	})
 
-	// Handlers for the filter input field
 	a.view.filterInput.SetChangedFunc(func(text string) {
 		a.state.SetFilterText(text)
 		a.view.Refresh()
@@ -78,7 +72,6 @@ func (a *App) setKeybindings() {
 	})
 }
 
-// handleExport triggers the CSV export action and shows a status message.
 func (a *App) handleExport() {
 	conns := a.state.GetFilteredConnections()
 	if len(conns) == 0 {
@@ -90,7 +83,6 @@ func (a *App) handleExport() {
 	if err != nil {
 		a.view.SetStatusMessage("Error exporting to CSV: " + err.Error())
 	} else {
-		// Use backticks for the filename to make it stand out
 		a.view.SetStatusMessage("Exported " + strings.TrimSpace(filename) + "")
 	}
 }

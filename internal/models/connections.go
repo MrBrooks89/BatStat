@@ -9,7 +9,6 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// Connection represents a single network connection with basic process info.
 type Connection struct {
 	Fd          uint32
 	Family      string
@@ -21,13 +20,11 @@ type Connection struct {
 	ProcessName string
 }
 
-// DetailedInfo holds more expensive-to-fetch information about a connection's process.
 type DetailedInfo struct {
 	Username string
 	Cmdline  string
 }
 
-// FromNetConnectionStat converts a gopsutil ConnectionStat to our internal Connection model.
 func FromNetConnectionStat(stat net.ConnectionStat, procCache map[int32]*process.Process) (Connection, map[int32]*process.Process) {
 	var procName string
 	p, exists := procCache[stat.Pid]
@@ -56,7 +53,6 @@ func FromNetConnectionStat(stat net.ConnectionStat, procCache map[int32]*process
 	}, procCache
 }
 
-// GetDetailedInfo fetches additional details for a given PID on demand.
 func GetDetailedInfo(pid int32) DetailedInfo {
 	if pid == 0 {
 		return DetailedInfo{Username: "N/A", Cmdline: "N/A"}

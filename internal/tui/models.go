@@ -11,7 +11,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// showHelpModal displays a colorful, detailed list of keybindings.
 func (v *View) showHelpModal() {
 	var builder strings.Builder
 	builder.WriteString("[::b][yellow]BatStat Keybindings[-:-:-]\n\n")
@@ -52,18 +51,17 @@ func (v *View) showHelpModal() {
 	v.pages.AddPage("help_modal", frame, true, true)
 }
 
-// showPingModal displays a modal and runs the ping command for the selected connection.
 func (v *View) showPingModal() {
 	c := v.GetSelectedConnection()
 	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
-		return // No remote address to ping
+		return 
 	}
 	ip := strings.Split(c.Raddr, ":")[0]
 
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetScrollable(true).
-		SetChangedFunc(func() { v.app.tviewApp.Draw() }) // Redraw on new content
+		SetChangedFunc(func() { v.app.tviewApp.Draw() })
 
 	frame := tview.NewFrame(textView).
 		AddText(fmt.Sprintf("Pinging %s...", ip), true, tview.AlignCenter, tview.Styles.TitleColor).
@@ -73,7 +71,7 @@ func (v *View) showPingModal() {
 
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			cancel() // Cancel the context to stop the ping command
+			cancel() 
 			v.pages.RemovePage("ping_modal")
 			v.app.tviewApp.SetFocus(v.table)
 			return nil
@@ -97,7 +95,6 @@ func (v *View) showPingModal() {
 	v.pages.AddPage("ping_modal", frame, true, true)
 }
 
-// showKillConfirmationModal displays a modal to confirm killing a process.
 func (v *View) showKillConfirmationModal(force bool) {
 	c := v.GetSelectedConnection()
 	if c == nil || c.Pid == 0 {
@@ -126,7 +123,6 @@ func (v *View) showKillConfirmationModal(force bool) {
 	v.pages.AddPage("kill_confirm", modal, true, true)
 }
 
-// showDetailsModal creates and displays a modal with in-depth connection details.
 func (v *View) showDetailsModal(c models.Connection) {
 	details := models.GetDetailedInfo(c.Pid)
 	var builder strings.Builder

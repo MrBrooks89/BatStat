@@ -19,16 +19,13 @@ func ExportToCSV(connections []models.Connection) (string, error) {
 	userInput, _ := reader.ReadString('\n')
 	userInput = strings.TrimSpace(userInput)
 
-	// Default filename
 	filename := "BatStat_export.csv"
 
 	if userInput != "" {
-		// Ensure .csv extension
 		if !strings.HasSuffix(userInput, ".csv") {
 			userInput += ".csv"
 		}
 
-		// Resolve relative/absolute path
 		absPath, err := filepath.Abs(userInput)
 		if err != nil {
 			return "", err
@@ -36,9 +33,7 @@ func ExportToCSV(connections []models.Connection) (string, error) {
 		filename = absPath
 	}
 
-	// Check if file exists
 	if _, err := os.Stat(filename); err == nil {
-		// File exists, ask for overwrite
 		for {
 			fmt.Printf("File %s already exists. Overwrite? (y/n): ", filename)
 			overwriteInput, _ := reader.ReadString('\n')
@@ -54,7 +49,6 @@ func ExportToCSV(connections []models.Connection) (string, error) {
 		}
 	}
 
-	// Create file
 	file, err := os.Create(filename)
 	if err != nil {
 		return "", err
@@ -64,13 +58,11 @@ func ExportToCSV(connections []models.Connection) (string, error) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Write header row
 	headers := []string{"ProcessName", "PID", "Status", "Family", "Type", "LocalAddr", "RemoteAddr"}
 	if err := writer.Write(headers); err != nil {
 		return "", err
 	}
 
-	// Write data rows
 	for _, c := range connections {
 		row := []string{
 			c.ProcessName,

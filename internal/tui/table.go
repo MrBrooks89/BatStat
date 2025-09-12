@@ -10,12 +10,10 @@ import (
 	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
-// populateTable clears and fills the main table with the current filtered connection data.
 func (v *View) populateTable() {
 	connections := v.app.state.GetFilteredConnections()
 	v.table.Clear()
 
-	// Set table headers
 	headers := []string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
 	for i, h := range headers {
 		cell := tview.NewTableCell(h).
@@ -25,7 +23,6 @@ func (v *View) populateTable() {
 		v.table.SetCell(0, i, cell)
 	}
 
-	// Populate table rows with connection data
 	for r, conn := range connections {
 		rowItems := []string{
 			strconv.Itoa(r + 1),
@@ -46,7 +43,6 @@ func (v *View) populateTable() {
 	}
 }
 
-// updateHeaderIndicator adds a sort indicator (▲/▼) to the current sort column header.
 func (v *View) updateHeaderIndicator() {
 	headers := []string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
 	for i, h := range headers {
@@ -63,7 +59,6 @@ func (v *View) updateHeaderIndicator() {
 	}
 }
 
-// updateDetailsView populates the right-hand pane with info for the selected row.
 func (v *View) updateDetailsView(row int) {
 	c := v.GetSelectedConnection()
 	if c == nil {
@@ -84,7 +79,6 @@ func (v *View) updateDetailsView(row int) {
 	v.detailsView.SetText(builder.String())
 }
 
-// getStatusColor returns a tcell.Color based on the connection status string.
 func getStatusColor(status string) tcell.Color {
 	switch status {
 	case "ESTABLISHED":
@@ -100,7 +94,6 @@ func getStatusColor(status string) tcell.Color {
 	}
 }
 
-// truncate shortens a string to a max length, adding an ellipsis.
 func truncate(s string, max int) string {
 	if len(s) > max {
 		return s[:max-3] + "..."

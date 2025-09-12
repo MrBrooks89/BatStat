@@ -8,8 +8,6 @@ import (
 	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
-// AppState holds the dynamic data and UI state of the application.
-// It uses a mutex to ensure thread-safe access from different goroutines.
 type AppState struct {
 	sync.RWMutex
 	connections         []models.Connection // Master list of all connections
@@ -19,7 +17,6 @@ type AppState struct {
 	sortAsc             bool
 }
 
-// NewAppState creates and initializes a new AppState.
 func NewAppState() *AppState {
 	return &AppState{
 		sortColumn: 0,
@@ -27,7 +24,6 @@ func NewAppState() *AppState {
 	}
 }
 
-// SetConnections updates the master list of connections and reapplies sorting and filtering.
 func (s *AppState) SetConnections(conns []models.Connection) {
 	s.Lock()
 	defer s.Unlock()
@@ -36,14 +32,12 @@ func (s *AppState) SetConnections(conns []models.Connection) {
 	s.applyFilter()
 }
 
-// GetFilteredConnections returns the currently visible list of connections.
 func (s *AppState) GetFilteredConnections() []models.Connection {
 	s.RLock()
 	defer s.RUnlock()
 	return s.filteredConnections
 }
 
-// SetSort changes the sorting parameters and reapplies sorting.
 func (s *AppState) SetSort(column int, asc bool) {
 	s.Lock()
 	defer s.Unlock()
@@ -53,7 +47,6 @@ func (s *AppState) SetSort(column int, asc bool) {
 	s.applyFilter()
 }
 
-// ToggleSortOrder reverses the current sort order.
 func (s *AppState) ToggleSortOrder() {
 	s.Lock()
 	defer s.Unlock()
@@ -62,17 +55,15 @@ func (s *AppState) ToggleSortOrder() {
 	s.applyFilter()
 }
 
-// CycleSortColumn moves to the next sortable column.
 func (s *AppState) CycleSortColumn() {
 	s.Lock()
 	defer s.Unlock()
-	s.sortColumn = (s.sortColumn % 7) + 1 // Cycle through 7 sortable columns
+	s.sortColumn = (s.sortColumn % 7) + 1 
 	s.sortAsc = true
 	s.applySort()
 	s.applyFilter()
 }
 
-// SetFilterText updates the filter query and reapplies it.
 func (s *AppState) SetFilterText(text string) {
 	s.Lock()
 	defer s.Unlock()
@@ -80,8 +71,6 @@ func (s *AppState) SetFilterText(text string) {
 	s.applyFilter()
 }
 
-// applyFilter filters the main connection list based on the filter text.
-// This is an internal method and should be called with a lock held.
 func (s *AppState) applyFilter() {
 	s.filteredConnections = nil
 	normalizedFilter := strings.ToLower(s.filterText)
@@ -105,8 +94,6 @@ func (s *AppState) applyFilter() {
 	}
 }
 
-// applySort sorts the main connections slice based on the current sort settings.
-// This is an internal method and should be called with a lock held.
 func (s *AppState) applySort() {
 	sort.SliceStable(s.connections, func(i, j int) bool {
 		c1, c2 := s.connections[i], s.connections[j]

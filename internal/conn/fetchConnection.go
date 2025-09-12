@@ -6,7 +6,6 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// FetchConnections fetches all network connections and enriches them with process info.
 func FetchConnections() ([]models.Connection, error) {
 	conns, err := net.Connections("all")
 	if err != nil {
