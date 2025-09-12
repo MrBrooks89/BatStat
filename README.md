@@ -63,9 +63,14 @@ This design makes it easy to monitor and analyze network activity efficiently.
 
 Requires **Go 1.21+**.  
 
+Latest verison:
 ```bash
 go install github.com/MrBrooks89/BatStat/cmd/BatStat@latest
-```  
+```
+Or Specific version:
+```bash
+go install github.com/MrBrooks89/BatStat/cmd/BatStat@v0.1.0
+```
 
 Make sure your `GOPATH/bin` is in your `$PATH`:  
 👉 [Go Wiki: Setting GOPATH](https://go.dev/wiki/SettingGOPATH)  
