@@ -23,7 +23,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]K        [white]Force Kill selected process (SIGKILL)\n")
 	builder.WriteString("[green]p        [white]Ping remote address of selection\n")
 	builder.WriteString("[green]/        [white]Filter connections\n")
-	builder.WriteString("[green]e        [white]Export visible connections to CSV\n\n")
+	builder.WriteString("[green]e        [white]Export visible connections to CSV (with path selection)\n\n")
 	builder.WriteString("[::u]Sorting[-:-]\n")
 	builder.WriteString("[green]s        [white]Cycle through sortable columns\n")
 	builder.WriteString("[green]S        [white]Toggle sort order (ASC/DESC)\n\n")

@@ -1,14 +1,22 @@
 package tui
 
 import (
-	"strings"
 
 	"github.com/MrBrooks89/BatStat/internal/actions"
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
+
+func (v *View) IsModalActive() bool {
+	currentPage, _ := v.pages.GetFrontPage()
+	return currentPage != "main"
+}
 
 func (a *App) setKeybindings() {
 	a.tviewApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if a.view.IsModalActive() {
+			return event
+		}
 		if a.view.filterInput.HasFocus() {
 			return event
 		}
@@ -71,7 +79,6 @@ func (a *App) setKeybindings() {
 		}
 	})
 }
-
 func (a *App) handleExport() {
 	conns := a.state.GetFilteredConnections()
 	if len(conns) == 0 {
@@ -79,10 +86,35 @@ func (a *App) handleExport() {
 		return
 	}
 
-	filename, err := actions.ExportToCSV(conns)
-	if err != nil {
-		a.view.SetStatusMessage("Error exporting to CSV: " + err.Error())
-	} else {
-		a.view.SetStatusMessage("Exported " + strings.TrimSpace(filename) + "")
-	}
+	modal := tview.NewModal().
+		SetText("Export to CSV").
+		AddButtons([]string{"Default", "Custom", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.view.pages.RemovePage("export_modal")
+			switch buttonLabel {
+			case "Default":
+				filename, err := actions.ExportToCSV(conns, "batstat_export.csv")
+				if err != nil {
+					a.view.SetStatusMessage("Error exporting to CSV: " + err.Error())
+				} else {
+					a.view.SetStatusMessage("Exported to " + filename)
+				}
+			case "Custom":
+				a.view.showInputModal("Export to CSV", "File path: ", func(path string) {
+					if path == "" {
+						a.view.SetStatusMessage("Export canceled.")
+						return
+					}
+					filename, err := actions.ExportToCSV(conns, path)
+					if err != nil {
+						a.view.SetStatusMessage("Error exporting to CSV: " + err.Error())
+					} else {
+						a.view.SetStatusMessage("Exported to " + filename)
+					}
+				})
+			}
+			a.tviewApp.SetFocus(a.view.table)
+		})
+
+	a.view.pages.AddPage("export_modal", modal, true, true)
 }

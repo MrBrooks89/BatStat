@@ -88,7 +88,7 @@ func (v *View) ShowInfoModal(message string, duration int) {
 		AddButtons([]string{"OK"})
 
 	go func() {
-		<-time.After(time.Duration(duration) * time.Second) // corrected
+		<-time.After(time.Duration(duration) * time.Second) 
 		v.app.tviewApp.QueueUpdateDraw(func() {
 			v.pages.RemovePage("info_modal")
 		})
@@ -106,9 +106,48 @@ func (v *View) SetStatusMessage(message string) {
 	v.hintView.SetText(fmt.Sprintf("[yellow]Status: [white]%s", message))
 
 	go func() {
-		<-time.After(3 * time.Second) // corrected
+		<-time.After(3 * time.Second) 
 		v.app.tviewApp.QueueUpdateDraw(func() {
 			v.hintView.SetText(originalText)
 		})
 	}()
+}
+
+func (v *View) showInputModal(title, label string, callback func(string)) {
+	inputField := tview.NewInputField().
+		SetLabel(label).
+		SetFieldWidth(40)
+		
+
+	form := tview.NewForm().
+		AddFormItem(inputField).
+		AddButton("Save", func() {
+			callback(inputField.GetText())
+			v.pages.RemovePage("input_modal")
+			v.app.tviewApp.SetFocus(v.table)
+		}).
+		AddButton("Cancel", func() {
+			v.pages.RemovePage("input_modal")
+			v.app.tviewApp.SetFocus(v.table)
+		})
+
+	form.SetBorder(true).SetTitle(title)
+
+	grid := tview.NewGrid().
+		SetColumns(0, 50, 0).
+		SetRows(0, 0, 0).
+		AddItem(form, 1, 1, 1, 1, 0, 0, true)
+
+	grid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			v.pages.RemovePage("input_modal")
+			v.app.tviewApp.SetFocus(v.table)
+			return nil
+		}
+		return event
+	})
+
+	v.pages.AddPage("input_modal", grid, true, true)
+
+	v.app.tviewApp.SetFocus(inputField)
 }

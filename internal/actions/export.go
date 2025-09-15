@@ -8,8 +8,7 @@ import (
 	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
-func ExportToCSV(connections []models.Connection) (string, error) {
-	filename := "batstat_export.csv"
+func ExportToCSV(connections []models.Connection, filename string) (string, error) {
 	file, err := os.Create(filename)
 	if err != nil {
 		return "", err
