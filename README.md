@@ -52,7 +52,7 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - `p` → Ping remote address in a live modal overlay  
 
 ### 📂 Export to CSV  
-- `e` → Export visible connections to `BatStat_export.csv`  
+- `e` → Default export visible connections to `BatStat_export.csv` or Custom choose the path and file name 
 
 ### ❓ In-App Help Panel  
 - `h` → Toggle a detailed, colorful panel with all keybindings  
