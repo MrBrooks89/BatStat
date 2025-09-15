@@ -61,7 +61,7 @@ This design makes it easy to monitor and analyze network activity efficiently.
 
 ## Installation  
 
-Requires **Go 1.21+**.  
+Requires **Go 1.25+**.  
 
 Latest verison:
 ```bash
