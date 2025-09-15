@@ -27,7 +27,7 @@ The main view provides a **two-pane layout**:
 
 This design makes it easy to monitor and analyze network activity efficiently.  
 
-*(screenshot or asciinema gif here would really help 🚀)*  
+<img width="2512" height="1357" alt="image" src="https://github.com/user-attachments/assets/369f3280-c83d-4180-8bf0-3b1e3177b38d" />
 
 ---
 
