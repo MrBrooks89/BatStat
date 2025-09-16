@@ -40,7 +40,7 @@ func NewView(app *App) *View {
 
 	hint := tview.NewTextView()
 	hint.SetDynamicColors(true)
-	hint.SetText("[::b]Keys:[-:-] [yellow]/[white]Filter [yellow]s/S[white]Sort [yellow]k/K[white]Kill [yellow]p[white]Ping [yellow]e[white]Export [yellow]h[white]Help [yellow]q[white]Quit")
+	hint.SetText("[::b]Keys:[-:-] [yellow]/[white]Filter [yellow]s/S[white]Sort [yellow]k/K[white]Kill [yellow]p[white]Ping [yellow]t[white]Traceroute [yellow]n[white]Nslookup [yellow]e[white]Export [yellow]h[white]Help [yellow]q[white]Quit")
 	v.hintView = hint
 
 	v.pages = tview.NewPages()

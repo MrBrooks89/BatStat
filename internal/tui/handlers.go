@@ -45,6 +45,12 @@ func (a *App) setKeybindings() {
 		case 'p':
 			a.view.showPingModal()
 			return nil
+		case 'n':
+			a.view.showNslookupModal()
+			return nil
+		case 't':
+			a.view.showTracerouteModal()
+			return nil
 		case 'h':
 			a.view.showHelpModal()
 			return nil

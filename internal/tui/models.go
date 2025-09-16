@@ -22,6 +22,8 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]k        [white]Kill selected process (Graceful)\n")
 	builder.WriteString("[green]K        [white]Force Kill selected process (SIGKILL)\n")
 	builder.WriteString("[green]p        [white]Ping remote address of selection\n")
+	builder.WriteString("[green]n        [white]Nslookup remote address of selection\n")
+	builder.WriteString("[green]t        [white]Traceroute to remote address of selection\n	")
 	builder.WriteString("[green]/        [white]Filter connections\n")
 	builder.WriteString("[green]e        [white]Export visible connections to CSV (with path selection)\n\n")
 	builder.WriteString("[::u]Sorting[-:-]\n")
@@ -151,4 +153,92 @@ func (v *View) showDetailsModal(c models.Connection) {
 	})
 
 	v.pages.AddPage("details_modal", frame, true, true)
+}
+
+func (v *View) showNslookupModal() {
+	c := v.GetSelectedConnection()
+	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
+		return 
+	}
+	host := strings.Split(c.Raddr, ":")[0]
+
+	textView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(true).
+		SetChangedFunc(func() { v.app.tviewApp.Draw() })
+
+	frame := tview.NewFrame(textView).
+		AddText(fmt.Sprintf("Nslookup for %s...", host), true, tview.AlignCenter, tview.Styles.TitleColor).
+		AddText("Press Esc to close", false, tview.AlignCenter, tview.Styles.SecondaryTextColor)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			cancel() 
+			v.pages.RemovePage("nslookup_modal")
+			v.app.tviewApp.SetFocus(v.table)
+			return nil
+		}
+		return event
+	})
+
+	outputChan := make(chan string)
+	go actions.Nslookup(ctx, host, outputChan)
+
+	go func() {
+		for line := range outputChan {
+			v.app.tviewApp.QueueUpdateDraw(func() {
+				currentText := textView.GetText(false)
+				textView.SetText(currentText + line + "\n")
+				textView.ScrollToEnd()
+			})
+		}
+	}()
+
+	v.pages.AddPage("nslookup_modal", frame, true, true)
+}
+
+func (v *View) showTracerouteModal() {
+	c := v.GetSelectedConnection()
+	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
+		return 
+	}
+	host := strings.Split(c.Raddr, ":")[0]
+
+	textView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetScrollable(true).
+		SetChangedFunc(func() { v.app.tviewApp.Draw() })
+
+	frame := tview.NewFrame(textView).
+		AddText(fmt.Sprintf("Traceroute to %s...", host), true, tview.AlignCenter, tview.Styles.TitleColor).
+		AddText("Press Esc to close", false, tview.AlignCenter, tview.Styles.SecondaryTextColor)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			cancel() 
+			v.pages.RemovePage("traceroute_modal")
+			v.app.tviewApp.SetFocus(v.table)
+			return nil
+		}
+		return event
+	})
+
+	outputChan := make(chan string)
+	go actions.Traceroute(ctx, host, outputChan)
+
+	go func() {
+		for line := range outputChan {
+			v.app.tviewApp.QueueUpdateDraw(func() {
+				currentText := textView.GetText(false)
+				textView.SetText(currentText + line + "\n")
+				textView.ScrollToEnd()
+			})
+		}
+	}()
+
+	v.pages.AddPage("traceroute_modal", frame, true, true)
 }
