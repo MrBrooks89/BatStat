@@ -113,7 +113,7 @@ func Traceroute(ctx context.Context, host string, outputChan chan<- string) {
 		cmd = exec.CommandContext(ctx, "traceroute", host)
 	case "linux":
 	  cmd = exec.CommandContext(ctx, "tracepath", host)
-	default: // Linux and other Unix-like systems
+	default: 
 		cmd = exec.CommandContext(ctx, "traceroute", host)
 	}
 
