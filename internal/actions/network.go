@@ -53,3 +53,94 @@ func Ping(ctx context.Context, ip string, outputChan chan<- string) {
 	}
 }
 
+func Nslookup(ctx context.Context, host string, outputChan chan<- string) {
+	defer close(outputChan)
+
+	if strings.ContainsAny(host, ";|&`") {
+		outputChan <- "Invalid hostname."
+		return
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.CommandContext(ctx, "nslookup", host)
+	default: 
+		cmd = exec.CommandContext(ctx, "nslookup", host)
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		outputChan <- fmt.Sprintf("Error creating stdout pipe: %v", err)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		outputChan <- fmt.Sprintf("Error starting nslookup command: %v", err)
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			_ = cmd.Process.Kill()
+			return
+		case outputChan <- scanner.Text():
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			outputChan <- fmt.Sprintf("Nslookup command finished with error: %v", err)
+		}
+	}
+}
+
+func Traceroute(ctx context.Context, host string, outputChan chan<- string) {
+	defer close(outputChan)
+
+	if strings.ContainsAny(host, ";|&`") {
+		outputChan <- "Invalid hostname."
+		return
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.CommandContext(ctx, "tracert", host)
+	case "macos":
+		cmd = exec.CommandContext(ctx, "traceroute", host)
+	case "linux":
+	  cmd = exec.CommandContext(ctx, "tracepath", host)
+	default: // Linux and other Unix-like systems
+		cmd = exec.CommandContext(ctx, "traceroute", host)
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		outputChan <- fmt.Sprintf("Error creating stdout pipe: %v", err)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		outputChan <- fmt.Sprintf("Error starting traceroute command: %v", err)
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			_ = cmd.Process.Kill()
+			return
+		case outputChan <- scanner.Text():
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			outputChan <- fmt.Sprintf("Traceroute command finished with error: %v", err)
+		}
+	}
+}
