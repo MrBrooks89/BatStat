@@ -1,3 +1,6 @@
+
+_Disclaimer: This project was made with the assitance of Gemini_
+
 # BatStat 🦇📊  
 
 A **terminal user interface (TUI) tool** for monitoring, analyzing, and managing network connections in real time.  
@@ -98,4 +101,4 @@ PRs are welcome!
 
 ## License  
 
-MIT License — see [LICENSE](LICENSE).  
+MIT License — see [LICENSE](LICENSE).
