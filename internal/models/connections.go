@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/netip"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 
 type Connection struct {
 	Fd          uint32
+	FDKnown     bool
 	Family      string
 	Type        string
 	Laddr       string
@@ -20,6 +22,11 @@ type Connection struct {
 	Status      string
 	Pid         int32
 	ProcessName string
+}
+
+// HasFileDescriptor reports whether the observation includes a descriptor.
+func (c Connection) HasFileDescriptor() bool {
+	return c.FDKnown || c.Fd != 0
 }
 
 type DetailedInfo struct {
@@ -58,7 +65,10 @@ func FromNetConnectionStat(stat net.ConnectionStat, procCache map[int32]*process
 	}
 
 	return Connection{
-		Fd:          stat.Fd,
+		Fd: stat.Fd,
+		// For Linux system-wide snapshots, an attributed PID comes from
+		// a /proc/<pid>/fd entry. Descriptor zero is valid there.
+		FDKnown:     stat.Fd != 0 || (runtime.GOOS == "linux" && stat.Pid > 0),
 		Family:      mapFamily(stat.Family),
 		Type:        mapType(stat.Type),
 		Laddr:       fmt.Sprintf("%s:%d", stat.Laddr.IP, stat.Laddr.Port),

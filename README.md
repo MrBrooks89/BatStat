@@ -11,6 +11,7 @@ A **terminal user interface (TUI) tool** for monitoring, analyzing, and managing
 - [Main Interface](#main-interface)  
 - [Features](#features)  
   - [Process View](#process-view)
+  - [Connection History](#connection-history)
   - [Process Management](#process-management)  
   - [Network Diagnostics](#network-diagnostics)  
   - [Export to CSV](#export-to-csv)  
@@ -59,6 +60,13 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - Press `P` to switch between Connections and Process View. Groups show the total, established TCP connections, and TCP listeners for each PID, with the largest groups first. Unattributed sockets appear under **Unknown owner**.
 - Press Enter to expand or collapse a group. Select an endpoint to inspect it or run a connection action. Press `s` and `S` to change endpoint order.
 - `/` and `L` filter both the counts and the expanded endpoints. CSV export includes all matching live endpoints, including those in collapsed groups. Switch to Connections for snapshot comparisons.
+
+### Connection History
+
+- Press `H` from Connections or Process View to inspect active and vanished connections, with the most recently vanished first. The details pane shows first seen, last seen, first missing, and observed state changes. Press `Tab` to focus and scroll the timeline, or `H` to return.
+- History records successful snapshots from the existing three-second refresh. Pause freezes the timeline, and connections that open and close between snapshots can be missed. History labels records **Identity uncertain** when more than one socket match is plausible.
+- History is kept in memory for the session, with room for 2,048 active records, 2,048 vanished records, and the latest 16 state changes per record. When the active limit is reached, History keeps tracking its existing active records and shows how many live connections are outside History.
+- `/` and `L` filter each record's latest observation. Return to the previous view to run endpoint actions or export live connections.
 
 ### ⚙️ Process Management  
 - `k` → Gracefully kill process for selected connection  

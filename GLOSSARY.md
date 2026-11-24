@@ -7,6 +7,33 @@ BatStat observes network connections and shows the processes associated with the
 **Connection snapshot**:
 The set of network connections observed during a single refresh.
 
+**Connection history**:
+A timeline of connections BatStat observed in successful snapshots during the current session.
+
+**Connection history record**:
+The observations BatStat attributes to one connection across successive successful snapshots. The record ends when BatStat observes the connection's absence.
+
+**Active history record**:
+A connection history record whose connection was observed in the latest successful snapshot.
+
+**Vanished history record**:
+A connection history record whose connection was absent from a successful snapshot after having been observed.
+
+**First seen**:
+The time of the earliest snapshot in a connection's history record.
+
+**Last seen**:
+The time of the most recent snapshot in which BatStat observed the connection in a history record.
+
+**First missing**:
+The time of the first successful snapshot in which BatStat observed the absence that ended a connection history record.
+
+**Observed state change**:
+A difference in a connection's reported state between observations, dated to the snapshot that showed the new state.
+
+**Identity uncertain**:
+A label for a history record whose observations could plausibly be attributed to more than one socket.
+
 **Paused monitoring**:
 The mode in which BatStat keeps the last displayed connection snapshot available for inspection and export.
 
