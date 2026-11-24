@@ -2,8 +2,10 @@ package models
 
 import (
 	"fmt"
+	"net/netip"
 	"os/user"
 	"strconv"
+	"strings"
 
 	"github.com/shirou/gopsutil/v3/net"
 	"github.com/shirou/gopsutil/v3/process"
@@ -23,6 +25,20 @@ type Connection struct {
 type DetailedInfo struct {
 	Username string
 	Cmdline  string
+}
+
+// LocalIP returns the IP of the local endpoint, or an invalid address if none is available.
+func (c Connection) LocalIP() netip.Addr {
+	if endpoint, err := netip.ParseAddrPort(c.Laddr); err == nil {
+		return endpoint.Addr()
+	}
+	// Collected IPv6 endpoints have no brackets. The final colon separates
+	// the address from the port.
+	if separator := strings.LastIndexByte(c.Laddr, ':'); c.Family == "IPv6" && separator >= 0 {
+		addr, _ := netip.ParseAddr(c.Laddr[:separator])
+		return addr
+	}
+	return netip.Addr{}
 }
 
 func FromNetConnectionStat(stat net.ConnectionStat, procCache map[int32]*process.Process) (Connection, map[int32]*process.Process) {
@@ -102,4 +118,3 @@ func mapType(t uint32) string {
 		return "Unknown"
 	}
 }
-

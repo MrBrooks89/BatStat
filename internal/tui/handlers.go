@@ -58,6 +58,10 @@ func (a *App) setKeybindings() {
 			a.view.vanishedCollapsed = !a.view.vanishedCollapsed
 			a.view.Refresh()
 			return nil
+		case 'L':
+			a.state.toggleListeningOnly()
+			a.view.Refresh()
+			return nil
 		case 'B':
 			if a.state.pinSnapshot() {
 				a.view.Refresh()

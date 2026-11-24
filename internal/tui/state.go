@@ -30,7 +30,8 @@ type AppState struct {
 
 	filteredLive     []connectionRow
 	filteredVanished []models.Connection
-	filterText       string
+	filter           connectionFilter
+	listeningOnly    bool
 	sortColumn       int
 	sortAsc          bool
 }
@@ -123,8 +124,21 @@ func (s *AppState) CycleSortColumn() {
 func (s *AppState) SetFilterText(text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.filterText = strings.ToLower(text)
+	s.filter = parseConnectionFilter(text)
 	s.updateDisplay()
+}
+
+func (s *AppState) toggleListeningOnly() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.listeningOnly = !s.listeningOnly
+	s.updateDisplay()
+}
+
+func (s *AppState) filterStatus() (listeningOnly bool, problem string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.listeningOnly, s.filter.problem
 }
 
 func (s *AppState) updateDisplay() {
@@ -169,11 +183,7 @@ func (s *AppState) updateDisplay() {
 }
 
 func (s *AppState) matchesFilter(c models.Connection) bool {
-	if s.filterText == "" {
-		return true
-	}
-	searchable := strings.Join([]string{c.ProcessName, c.Status, c.Family, c.Laddr, c.Raddr}, " ")
-	return strings.Contains(strings.ToLower(searchable), s.filterText)
+	return (!s.listeningOnly || isTCPListener(c)) && s.filter.matches(c)
 }
 
 func compareConnections(a, b models.Connection, column int) int {

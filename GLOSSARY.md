@@ -27,3 +27,12 @@ A vanished connection retained briefly in the live snapshot diff so it can be in
 
 **Pinned snapshot**:
 The complete connection snapshot held as a fixed baseline for before-and-after comparisons during a BatStat session.
+
+**TCP listener**:
+A TCP socket observed in the `LISTEN` state.
+
+**Loopback binding**:
+A listener bound to a local loopback address, such as `127.0.0.1` or `::1`.
+
+**All-interface binding**:
+A listener bound to the wildcard address for its address family, `0.0.0.0` for IPv4 or `::` for IPv6.
