@@ -10,6 +10,7 @@ A **terminal user interface (TUI) tool** for monitoring, analyzing, and managing
 ## Table of Contents  
 - [Main Interface](#main-interface)  
 - [Features](#features)  
+  - [Process View](#process-view)
   - [Process Management](#process-management)  
   - [Network Diagnostics](#network-diagnostics)  
   - [Export to CSV](#export-to-csv)  
@@ -52,6 +53,12 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - Column sorting:  
   - Press `s` → cycle through sortable columns  
   - Press `S` → toggle ascending/descending order  
+
+### Process View
+
+- Press `P` to switch between Connections and Process View. Groups show the total, established TCP connections, and TCP listeners for each PID, with the largest groups first. Unattributed sockets appear under **Unknown owner**.
+- Press Enter to expand or collapse a group. Select an endpoint to inspect it or run a connection action. Press `s` and `S` to change endpoint order.
+- `/` and `L` filter both the counts and the expanded endpoints. CSV export includes all matching live endpoints, including those in collapsed groups. Switch to Connections for snapshot comparisons.
 
 ### ⚙️ Process Management  
 - `k` → Gracefully kill process for selected connection  

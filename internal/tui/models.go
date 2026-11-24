@@ -18,7 +18,8 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]↑/↓      [white]Move selection up/down\n")
 	builder.WriteString("[green]←/→      [white]Scroll table left/right\n")
 	builder.WriteString("[green]Tab      [white]Switch between live and vanished connections\n")
-	builder.WriteString("[green]Enter    [white]Show detailed info for selection\n\n")
+	builder.WriteString("[green]P        [white]Switch between Connections and Process View\n")
+	builder.WriteString("[green]Enter    [white]Expand/collapse a process group or show endpoint details\n\n")
 	builder.WriteString("[::u]Actions[-:-]\n")
 	builder.WriteString("[gray]Process termination requires a live connection snapshot.\n")
 	builder.WriteString("[green]k        [white]Kill selected process (Graceful)\n")
@@ -30,7 +31,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]L        [white]Toggle Listening only\n")
 	builder.WriteString("[green]e        [white]Export filtered live connections to CSV (with path selection)\n\n")
 	builder.WriteString("[::u]Sorting[-:-]\n")
-	builder.WriteString("[green]s        [white]Cycle through sortable columns\n")
+	builder.WriteString("[green]s        [white]Cycle through endpoint sort columns\n")
 	builder.WriteString("[green]S        [white]Toggle sort order (ASC/DESC)\n\n")
 	builder.WriteString("[::u]Application[-:-]\n")
 	builder.WriteString("[green]h        [white]Show/Hide this help panel\n")
@@ -51,7 +52,7 @@ func (v *View) showHelpModal() {
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape || event.Rune() == 'h' {
 			v.pages.RemovePage("help_modal")
-			v.app.tviewApp.SetFocus(v.table)
+			v.focusActiveTable()
 			return nil
 		}
 		return event
@@ -82,7 +83,7 @@ func (v *View) showPingModal() {
 		if event.Key() == tcell.KeyEscape {
 			cancel()
 			v.pages.RemovePage("ping_modal")
-			v.app.tviewApp.SetFocus(v.table)
+			v.focusActiveTable()
 			return nil
 		}
 		return event
@@ -110,7 +111,7 @@ func (v *View) showKillConfirmationModal(force bool) {
 		return
 	}
 	c := v.GetSelectedConnection()
-	if c == nil || c.Pid == 0 {
+	if c == nil || c.Pid <= 0 {
 		return
 	}
 
@@ -131,7 +132,7 @@ func (v *View) showKillConfirmationModal(force bool) {
 				}
 			}
 			v.pages.RemovePage("kill_confirm").ShowPage("main")
-			v.app.tviewApp.SetFocus(v.table)
+			v.focusActiveTable()
 		})
 	v.pages.AddPage("kill_confirm", modal, true, true)
 }
@@ -150,7 +151,7 @@ func (v *View) showDetailsModal(c models.Connection, vanished bool) {
 			if vanished && v.vanishedVisible {
 				v.app.tviewApp.SetFocus(v.vanishedTable)
 			} else {
-				v.app.tviewApp.SetFocus(v.table)
+				v.focusActiveTable()
 			}
 			return nil
 		}
@@ -182,7 +183,7 @@ func (v *View) showNslookupModal() {
 		if event.Key() == tcell.KeyEscape {
 			cancel()
 			v.pages.RemovePage("nslookup_modal")
-			v.app.tviewApp.SetFocus(v.table)
+			v.focusActiveTable()
 			return nil
 		}
 		return event
@@ -226,7 +227,7 @@ func (v *View) showTracerouteModal() {
 		if event.Key() == tcell.KeyEscape {
 			cancel()
 			v.pages.RemovePage("traceroute_modal")
-			v.app.tviewApp.SetFocus(v.table)
+			v.focusActiveTable()
 			return nil
 		}
 		return event

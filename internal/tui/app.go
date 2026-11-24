@@ -116,5 +116,6 @@ func (a *App) applyRefresh(id uint64, conns []models.Connection, capturedAt time
 	a.view.detailsView.SetTitle(" Details ")
 
 	a.state.SetConnections(conns, capturedAt)
+	a.view.processes.reconcileSnapshot(conns)
 	a.view.Refresh()
 }

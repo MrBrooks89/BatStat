@@ -20,12 +20,27 @@ func (a *App) setKeybindings() {
 			return event
 		}
 		if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
+			if a.view.showProcesses {
+				return nil
+			}
 			if a.view.vanishedVisible && !a.view.vanishedTable.HasFocus() {
 				a.tviewApp.SetFocus(a.view.vanishedTable)
 			} else {
 				a.tviewApp.SetFocus(a.view.table)
 			}
 			return nil
+		}
+		if a.view.showProcesses {
+			switch event.Rune() {
+			case 'B', 'b', 'v':
+				a.view.SetStatusMessage("Press P for snapshot comparison controls.")
+				return nil
+			case 'k', 'K', 'p', 'n', 't':
+				if row := a.view.processes.selectedRow(); row.group != nil && row.connection == nil {
+					a.view.SetStatusMessage("Expand the group and select an endpoint.")
+					return nil
+				}
+			}
 		}
 
 		switch event.Rune() {
@@ -40,7 +55,11 @@ func (a *App) setKeybindings() {
 			}
 			return nil
 		case 's':
-			a.state.CycleSortColumn()
+			firstColumn := 1
+			if a.view.showProcesses {
+				firstColumn = firstEndpointColumn
+			}
+			a.state.CycleSortColumn(firstColumn)
 			a.view.Refresh()
 			return nil
 		case 'S':
@@ -61,6 +80,9 @@ func (a *App) setKeybindings() {
 		case 'L':
 			a.state.toggleListeningOnly()
 			a.view.Refresh()
+			return nil
+		case 'P':
+			a.view.toggleProcessView()
 			return nil
 		case 'B':
 			if a.state.pinSnapshot() {
@@ -104,17 +126,22 @@ func (a *App) setKeybindings() {
 		return event
 	})
 
-	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable} {
+	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable, a.view.processes.table} {
 		table.SetFocusFunc(a.view.updateDetailsView)
 		table.SetSelectionChangedFunc(func(_, _ int) {
 			a.view.updateDetailsView()
 		})
+	}
+	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable} {
 		table.SetSelectedFunc(func(_, _ int) {
 			if conn, vanished := a.view.selectedConnectionDetails(); conn != nil {
 				a.view.showDetailsModal(*conn, vanished)
 			}
 		})
 	}
+	a.view.processes.table.SetSelectedFunc(func(_, _ int) {
+		a.view.activateProcessRow()
+	})
 
 	a.view.filterInput.SetChangedFunc(func(text string) {
 		a.state.SetFilterText(text)
@@ -123,7 +150,7 @@ func (a *App) setKeybindings() {
 
 	a.view.filterInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter || key == tcell.KeyEscape {
-			a.tviewApp.SetFocus(a.view.table)
+			a.view.focusActiveTable()
 		}
 	})
 }
@@ -160,8 +187,9 @@ func (a *App) handleExport() {
 						a.view.SetStatusMessage("Exported to " + filename)
 					}
 				})
+				return
 			}
-			a.tviewApp.SetFocus(a.view.table)
+			a.view.focusActiveTable()
 		})
 
 	a.view.pages.AddPage("export_modal", modal, true, true)

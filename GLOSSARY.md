@@ -36,3 +36,9 @@ A listener bound to a local loopback address, such as `127.0.0.1` or `::1`.
 
 **All-interface binding**:
 A listener bound to the wildcard address for its address family, `0.0.0.0` for IPv4 or `::` for IPv6.
+
+**Process group**:
+The observed connections attributed to one process ID in the current connection snapshot.
+
+**Unknown owner group**:
+The connections in the current snapshot whose owning process IDs are unavailable. They can belong to several processes.
