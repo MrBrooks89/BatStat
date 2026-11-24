@@ -17,6 +17,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[::u]Navigation[-:-]\n")
 	builder.WriteString("[green]↑/↓      [white]Move selection up/down\n")
 	builder.WriteString("[green]←/→      [white]Scroll table left/right\n")
+	builder.WriteString("[green]Tab      [white]Switch between live and vanished connections\n")
 	builder.WriteString("[green]Enter    [white]Show detailed info for selection\n\n")
 	builder.WriteString("[::u]Actions[-:-]\n")
 	builder.WriteString("[gray]Process termination requires a live connection snapshot.\n")
@@ -26,13 +27,16 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]n        [white]Nslookup remote address of selection\n")
 	builder.WriteString("[green]t        [white]Traceroute to remote address of selection\n	")
 	builder.WriteString("[green]/        [white]Filter connections\n")
-	builder.WriteString("[green]e        [white]Export visible connections to CSV (with path selection)\n\n")
+	builder.WriteString("[green]e        [white]Export filtered live connections to CSV (with path selection)\n\n")
 	builder.WriteString("[::u]Sorting[-:-]\n")
 	builder.WriteString("[green]s        [white]Cycle through sortable columns\n")
 	builder.WriteString("[green]S        [white]Toggle sort order (ASC/DESC)\n\n")
 	builder.WriteString("[::u]Application[-:-]\n")
 	builder.WriteString("[green]h        [white]Show/Hide this help panel\n")
 	builder.WriteString("[green]Space    [white]Pause or resume connection monitoring\n")
+	builder.WriteString("[green]v        [white]Collapse or expand vanished connections\n")
+	builder.WriteString("[green]B        [white]Pin the current connection snapshot\n")
+	builder.WriteString("[green]b        [white]Switch between previous-refresh and pinned comparisons\n")
 	builder.WriteString("[green]r        [white]Refresh connections manually while live\n")
 	builder.WriteString("[green]q        [white]Quit BatStat\n")
 
@@ -131,8 +135,8 @@ func (v *View) showKillConfirmationModal(force bool) {
 	v.pages.AddPage("kill_confirm", modal, true, true)
 }
 
-func (v *View) showDetailsModal(c models.Connection) {
-	textView := tview.NewTextView().SetDynamicColors(true).SetText(v.connectionDetails(c))
+func (v *View) showDetailsModal(c models.Connection, vanished bool) {
+	textView := tview.NewTextView().SetDynamicColors(true).SetText(v.connectionDetails(c, vanished))
 	textView.SetBorder(true).SetBorderPadding(1, 1, 1, 1)
 
 	frame := tview.NewFrame(textView).
@@ -142,7 +146,11 @@ func (v *View) showDetailsModal(c models.Connection) {
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEnter || event.Key() == tcell.KeyEscape {
 			v.pages.RemovePage("details_modal")
-			v.app.tviewApp.SetFocus(v.table)
+			if vanished && v.vanishedVisible {
+				v.app.tviewApp.SetFocus(v.vanishedTable)
+			} else {
+				v.app.tviewApp.SetFocus(v.table)
+			}
 			return nil
 		}
 		return event

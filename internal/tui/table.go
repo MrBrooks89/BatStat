@@ -4,76 +4,128 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-func (v *View) populateTable() {
-	connections := v.app.state.GetFilteredConnections()
-	v.table.Clear()
+var connectionHeaders = [...]string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
 
-	headers := []string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
-	for i, h := range headers {
-		cell := tview.NewTableCell(h).
-			SetTextColor(tview.Styles.SecondaryTextColor).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false)
-		v.table.SetCell(0, i, cell)
+func (v *View) populateLiveTable(live []connectionRow, pinned bool) {
+	table := v.table
+	table.Clear()
+	setConnectionHeaders(table, v.app.state.sortColumn, v.app.state.sortAsc)
+	for i, row := range live {
+		number := strconv.Itoa(i + 1)
+		if row.isNew {
+			if pinned {
+				number = "New since pin"
+			} else {
+				number = "NEW"
+			}
+		}
+		addConnectionRow(table, i+1, row.connection, number)
+	}
+	clampConnectionSelection(table)
+}
+
+func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.Time) {
+	title := "Recently vanished"
+	baseline := "Baseline: Previous refresh"
+	if !pinTime.IsZero() {
+		title = "Vanished since pin"
+		baseline = "Baseline: Pinned at " + pinTime.Format("2006-01-02 15:04:05")
+	}
+	label := fmt.Sprintf("%s (%d)", title, len(vanished))
+	if v.vanishedCollapsed && len(vanished) > 0 {
+		label += " · collapsed"
+	}
+	v.baselineView.SetText(baseline + "  |  " + label)
+
+	v.vanishedVisible = len(vanished) > 0 && !v.vanishedCollapsed
+	table := v.vanishedTable
+	table.Clear()
+	if !v.vanishedVisible {
+		v.connectionLists.ResizeItem(table, 0, 0)
+		if table.HasFocus() {
+			v.app.tviewApp.SetFocus(v.table)
+		}
+		return
 	}
 
-	for r, conn := range connections {
-		rowItems := []string{
-			strconv.Itoa(r + 1),
-			conn.ProcessName,
-			strconv.Itoa(int(conn.Pid)),
-			conn.Status,
-			conn.Family,
-			conn.Type,
-			conn.Laddr,
-			conn.Raddr,
+	v.connectionLists.ResizeItem(table, 0, 1)
+	setConnectionHeaders(table, -1, true)
+	table.GetCell(0, 0).SetText("Vanished")
+	for i, c := range vanished {
+		addConnectionRow(table, i+1, c, strconv.Itoa(i+1))
+	}
+	clampConnectionSelection(table)
+}
+
+func setConnectionHeaders(table *tview.Table, sortColumn int, ascending bool) {
+	for i, header := range connectionHeaders {
+		if i == sortColumn {
+			if ascending {
+				header += " [yellow]▲"
+			} else {
+				header += " [yellow]▼"
+			}
 		}
-		for c, item := range rowItems {
-			cell := tview.NewTableCell(truncate(item, 30)).
-				SetExpansion(1).
-				SetTextColor(getStatusColor(conn.Status))
-			v.table.SetCell(r+1, c, cell)
-		}
+		table.SetCell(0, i, tview.NewTableCell(header).
+			SetTextColor(tview.Styles.SecondaryTextColor).
+			SetAlign(tview.AlignCenter).
+			SetSelectable(false))
 	}
 }
 
-func (v *View) updateHeaderIndicator() {
-	headers := []string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
-	for i, h := range headers {
-		indicator := ""
-		if i == v.app.state.sortColumn {
-			indicator = " [yellow]▲"
-			if !v.app.state.sortAsc {
-				indicator = " [yellow]▼"
-			}
-		}
-		if cell := v.table.GetCell(0, i); cell != nil {
-			cell.SetText(h + indicator)
-		}
+func addConnectionRow(table *tview.Table, row int, c models.Connection, number string) {
+	items := [...]string{
+		number, c.ProcessName, strconv.FormatInt(int64(c.Pid), 10),
+		c.Status, c.Family, c.Type, c.Laddr, c.Raddr,
 	}
+	for column, item := range items {
+		table.SetCell(row, column, tview.NewTableCell(truncate(item, 30)).
+			SetExpansion(1).
+			SetTextColor(getStatusColor(c.Status)))
+	}
+}
+
+func clampConnectionSelection(table *tview.Table) {
+	row, _ := table.GetSelection()
+	last := table.GetRowCount() - 1
+	if last > 0 && (row < 1 || row > last) {
+		table.Select(1, 0)
+	}
+}
+
+func (v *View) selectedConnectionDetails() (*models.Connection, bool) {
+	if v.vanishedTable.HasFocus() {
+		return v.selectedVanishedConnection(), true
+	}
+	return v.GetSelectedConnection(), false
 }
 
 func (v *View) updateDetailsView() {
-	c := v.GetSelectedConnection()
+	c, vanished := v.selectedConnectionDetails()
 	if c == nil {
 		v.detailsView.Clear().SetText(" [gray]No connection selected")
 		return
 	}
-	v.detailsView.SetText(v.connectionDetails(*c))
+	v.detailsView.SetText(v.connectionDetails(*c, vanished))
 }
 
-func (v *View) connectionDetails(c models.Connection) string {
+func (v *View) connectionDetails(c models.Connection, vanished bool) string {
 	var builder strings.Builder
+	if vanished {
+		builder.WriteString("[gray]Vanished connection · captured details[white]\n\n")
+	}
 	builder.WriteString(fmt.Sprintf("[yellow]Process:[white]    %s\n", c.ProcessName))
 	builder.WriteString(fmt.Sprintf("[yellow]PID:[white]        %d\n", c.Pid))
+	live := !vanished && !v.app.awaitingLiveData
 	var details models.DetailedInfo
-	if !v.app.awaitingLiveData {
+	if live {
 		details = models.GetDetailedInfo(c.Pid)
 		builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
 	}
@@ -81,10 +133,10 @@ func (v *View) connectionDetails(c models.Connection) string {
 	builder.WriteString(fmt.Sprintf("[yellow]Local Addr:[white] %s\n", c.Laddr))
 	builder.WriteString(fmt.Sprintf("[yellow]Remote Addr:[white] %s\n\n", c.Raddr))
 
-	if v.app.awaitingLiveData {
-		builder.WriteString("[gray]Live user and command details return after a refresh.")
-	} else {
+	if live {
 		builder.WriteString(fmt.Sprintf("[yellow]Command:[white]\n%s\n", details.Cmdline))
+	} else if !vanished {
+		builder.WriteString("[gray]Live user and command details return after a refresh.")
 	}
 	return builder.String()
 }

@@ -9,16 +9,21 @@ import (
 	"github.com/rivo/tview"
 )
 
-const keyHints = "[yellow]Space[white] Pause/Resume [yellow]/[white]Filter [yellow]s/S[white]Sort [yellow]k/K[white]Kill [yellow]p[white]Ping [yellow]t[white]Traceroute [yellow]n[white]Nslookup [yellow]e[white]Export [yellow]h[white]Help [yellow]q[white]Quit"
+const keyHints = "[yellow]Space[white] Pause/Resume [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]/[white] Filter [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
 
 type View struct {
-	app             *App
-	table           *tview.Table
-	detailsView     *tview.TextView
-	filterInput     *tview.InputField
-	hintView        *tview.TextView
-	pages           *tview.Pages
-	statusMessageID uint64
+	app               *App
+	table             *tview.Table
+	vanishedTable     *tview.Table
+	connectionLists   *tview.Flex
+	baselineView      *tview.TextView
+	vanishedCollapsed bool
+	vanishedVisible   bool
+	detailsView       *tview.TextView
+	filterInput       *tview.InputField
+	hintView          *tview.TextView
+	pages             *tview.Pages
+	statusMessageID   uint64
 }
 
 func NewView(app *App) *View {
@@ -28,6 +33,8 @@ func NewView(app *App) *View {
 		SetBorders(true).
 		SetSelectable(true, false).
 		SetFixed(1, 0)
+	v.vanishedTable = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0)
+	v.baselineView = tview.NewTextView()
 
 	details := tview.NewTextView()
 	details.SetDynamicColors(true)
@@ -52,36 +59,51 @@ func NewView(app *App) *View {
 }
 
 func (v *View) Init() {
+	v.connectionLists = tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(v.table, 0, 2, true).
+		AddItem(v.vanishedTable, 0, 0, false)
 	mainFlex := tview.NewFlex().
-		AddItem(v.table, 0, 1, true).
+		AddItem(v.connectionLists, 0, 1, true).
 		AddItem(v.detailsView, 0, 1, false)
 
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(mainFlex, 0, 1, true).
+		AddItem(v.baselineView, 1, 0, false).
 		AddItem(v.filterInput, 1, 0, false).
 		AddItem(v.hintView, 1, 0, false)
 
 	v.pages.AddPage("main", layout, true, true)
 	v.app.tviewApp.SetRoot(v.pages, true).EnableMouse(true)
+	v.Refresh()
 }
 
 func (v *View) Refresh() {
-	v.populateTable()
-	v.updateHeaderIndicator()
+	live, vanished, pinTime := v.app.state.displayedRows()
+	v.populateLiveTable(live, !pinTime.IsZero())
+	v.populateVanishedTable(vanished, pinTime)
 	v.updateDetailsView()
 }
 
 func (v *View) GetSelectedConnection() *models.Connection {
+	if v.vanishedTable.HasFocus() {
+		return nil
+	}
 	row, _ := v.table.GetSelection()
-	if row < 1 {
+	live, _, _ := v.app.state.displayedRows()
+	if row < 1 || row > len(live) {
 		return nil
 	}
-	conns := v.app.state.GetFilteredConnections()
-	if row > len(conns) {
+	return &live[row-1].connection
+}
+
+func (v *View) selectedVanishedConnection() *models.Connection {
+	row, _ := v.vanishedTable.GetSelection()
+	_, vanished, _ := v.app.state.displayedRows()
+	if row < 1 || row > len(vanished) {
 		return nil
 	}
-	return &conns[row-1]
+	return &vanished[row-1]
 }
 
 func (v *View) ShowInfoModal(message string, duration int) {

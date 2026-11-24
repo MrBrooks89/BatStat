@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
@@ -31,7 +32,7 @@ func TestPauseKeepsLastDisplayedSnapshot(t *testing.T) {
 		}
 	}
 
-	app.applyRefresh(beginRefresh(), []models.Connection{{ProcessName: "displayed"}})
+	app.applyRefresh(beginRefresh(), []models.Connection{{ProcessName: "displayed", Laddr: ":8000"}}, time.Now())
 	beforePause := beginRefresh()
 	alsoBeforePause := beginRefresh()
 
@@ -45,15 +46,21 @@ func TestPauseKeepsLastDisplayedSnapshot(t *testing.T) {
 	if _, ok := app.beginRefresh(); ok {
 		t.Fatal("started a refresh while paused")
 	}
-	app.applyRefresh(beforePause, []models.Connection{{ProcessName: "stale"}})
+	app.applyRefresh(beforePause, []models.Connection{{ProcessName: "stale"}}, time.Now())
 	requireDisplayedProcess("displayed")
 
 	app.setPaused(false)
-	app.applyRefresh(alsoBeforePause, []models.Connection{{ProcessName: "also stale"}})
+	app.applyRefresh(alsoBeforePause, []models.Connection{{ProcessName: "also stale"}}, time.Now())
 	requireDisplayedProcess("displayed")
+	if _, vanished, _ := app.state.displayedRows(); len(vanished) != 0 {
+		t.Fatalf("discarded refresh changed the vanished list: %v", vanished)
+	}
 
-	app.applyRefresh(beginRefresh(), []models.Connection{{ProcessName: "fresh"}})
+	app.applyRefresh(beginRefresh(), []models.Connection{{ProcessName: "fresh", Laddr: ":8001"}}, time.Now())
 	requireDisplayedProcess("fresh")
+	if live, vanished, _ := app.state.displayedRows(); !live[0].isNew || len(vanished) != 1 || vanished[0].ProcessName != "displayed" {
+		t.Fatalf("resume should compare with the paused snapshot: live = %v, vanished = %v", live, vanished)
+	}
 	if got := app.view.detailsView.GetTitle(); got != " Details " {
 		t.Fatalf("details title = %q after fresh data arrived", got)
 	}
