@@ -1,5 +1,5 @@
 
-_Disclaimer: This project was made with the assitance of Gemini_
+_Disclaimer: This project was made with the assitance of Codex
 
 # BatStat 🦇📊  
 
