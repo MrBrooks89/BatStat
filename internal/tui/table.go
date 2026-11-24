@@ -11,6 +11,11 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	liveTableBorders     = true
+	vanishedTableBorders = false
+)
+
 var connectionHeaders = [...]string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
 
 func (v *View) populateLiveTable(live []connectionRow, pinned bool) {
@@ -86,14 +91,35 @@ func setConnectionHeaders(table *tview.Table, sortColumn int, ascending bool) {
 
 func addConnectionRow(table *tview.Table, row int, c models.Connection, number string) {
 	items := [...]string{
-		number, c.ProcessName, strconv.FormatInt(int64(c.Pid), 10),
+		number, truncate(c.ProcessName, 30), strconv.FormatInt(int64(c.Pid), 10),
 		displayStatus(c), c.Family, c.Type, c.Laddr, c.Raddr,
 	}
 	for column, item := range items {
-		table.SetCell(row, column, tview.NewTableCell(truncate(item, 30)).
+		table.SetCell(row, column, tview.NewTableCell(item).
 			SetExpansion(1).
 			SetTextColor(getStatusColor(c.Status)))
 	}
+}
+
+// Measure every row so scrolling through a snapshot keeps the same pane widths.
+func connectionTableWidth(table *tview.Table, borders bool) int {
+	columns := table.GetColumnCount()
+	if columns == 0 {
+		return 0
+	}
+	width := columns - 1 // One separator between adjacent columns.
+	if borders {
+		width += 2
+	}
+	rows := table.GetRowCount()
+	for column := range columns {
+		var widest int
+		for row := range rows {
+			widest = max(widest, tview.TaggedStringWidth(table.GetCell(row, column).Text))
+		}
+		width += widest
+	}
+	return width
 }
 
 func clampConnectionSelection(table *tview.Table) {

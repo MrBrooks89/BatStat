@@ -13,16 +13,36 @@ const keyHints = "[yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yel
 
 type connectionLayout struct {
 	*tview.Flex
+	connectionLists *tview.Flex
+	tables          [2]*tview.Table
+	tableWidth      int
+	stacked         bool
 }
 
 func (layout *connectionLayout) Draw(screen tcell.Screen) {
 	_, _, width, height := layout.GetRect()
-	// Stack the panes when the tables need more width and there is room below.
-	direction := tview.FlexColumn
-	if width < 120 && height >= 15 {
-		direction = tview.FlexRow
+	const minDetailsWidth = 36
+	stacked := height >= 15 && (width < 120 || width < layout.tableWidth+minDetailsWidth)
+	if stacked {
+		layout.SetDirection(tview.FlexRow)
+		layout.ResizeItem(layout.connectionLists, 0, 1)
+		if !layout.stacked {
+			// Stacking shrinks the tables vertically. Reapply the selection so
+			// tview brings it into the new viewport on the next draw.
+			for _, table := range layout.tables {
+				if row, column := table.GetSelection(); row > 0 && row < table.GetRowCount() {
+					table.Select(row, column)
+				}
+			}
+		}
+	} else {
+		// Start with an even split and give the tables room for their columns.
+		tableWidth := max(width/2, min(layout.tableWidth, width-minDetailsWidth))
+		layout.SetDirection(tview.FlexColumn)
+		layout.ResizeItem(layout.connectionLists, tableWidth, 1)
 	}
-	layout.Flex.SetDirection(direction).Draw(screen)
+	layout.stacked = stacked
+	layout.Flex.Draw(screen)
 }
 
 type View struct {
@@ -30,6 +50,7 @@ type View struct {
 	table             *tview.Table
 	vanishedTable     *tview.Table
 	connectionLists   *tview.Flex
+	mainLayout        *connectionLayout
 	baselineView      *tview.TextView
 	vanishedCollapsed bool
 	vanishedVisible   bool
@@ -44,10 +65,10 @@ func NewView(app *App) *View {
 	v := &View{app: app}
 
 	v.table = tview.NewTable().
-		SetBorders(true).
+		SetBorders(liveTableBorders).
 		SetSelectable(true, false).
 		SetFixed(1, 0)
-	v.vanishedTable = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0)
+	v.vanishedTable = tview.NewTable().SetBorders(vanishedTableBorders).SetSelectable(true, false).SetFixed(1, 0)
 	v.baselineView = tview.NewTextView()
 
 	details := tview.NewTextView()
@@ -79,10 +100,15 @@ func (v *View) Init() {
 	mainFlex := tview.NewFlex().
 		AddItem(v.connectionLists, 0, 1, true).
 		AddItem(v.detailsView, 0, 1, false)
+	v.mainLayout = &connectionLayout{
+		Flex:            mainFlex,
+		connectionLists: v.connectionLists,
+		tables:          [2]*tview.Table{v.table, v.vanishedTable},
+	}
 
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(&connectionLayout{mainFlex}, 0, 1, true).
+		AddItem(v.mainLayout, 0, 1, true).
 		AddItem(v.baselineView, 1, 0, false).
 		AddItem(v.filterInput, 1, 0, false).
 		AddItem(v.hintView, 1, 0, false)
@@ -102,6 +128,10 @@ func (v *View) Refresh() {
 	v.filterInput.SetLabel(label + ": ")
 	v.populateLiveTable(live, !pinTime.IsZero())
 	v.populateVanishedTable(vanished, pinTime, problem)
+	v.mainLayout.tableWidth = max(
+		connectionTableWidth(v.table, liveTableBorders),
+		connectionTableWidth(v.vanishedTable, vanishedTableBorders),
+	)
 	v.updateDetailsView()
 }
 
