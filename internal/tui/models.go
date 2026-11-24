@@ -37,6 +37,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]S        [white]Toggle sort order (ASC/DESC)\n\n")
 	builder.WriteString("[::u]Application[-:-]\n")
 	builder.WriteString("[green]h        [white]Show/Hide this help panel\n")
+	builder.WriteString("[green]i        [white]Choose which interface to graph\n")
 	builder.WriteString("[green]Space    [white]Pause or resume connection monitoring\n")
 	builder.WriteString("[green]v        [white]Collapse or expand vanished connections\n")
 	builder.WriteString("[green]B        [white]Pin the current connection snapshot\n")

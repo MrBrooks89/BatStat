@@ -10,10 +10,30 @@ import (
 )
 
 const (
-	keyHints        = "[yellow]H[white] History [yellow]P[white] Process View [yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
-	processKeyHints = "[yellow]H[white] History [yellow]P[white] Connections [yellow]Enter[white] Expand/Details [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
-	historyKeyHints = "[yellow]H[white] Return [yellow]Tab[white] List/Timeline [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]h[white] Help [yellow]q[white] Quit"
+	keyHints        = "[yellow]H[white] History [yellow]P[white] Process View [yellow]i[white] Interfaces [yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+	processKeyHints = "[yellow]H[white] History [yellow]P[white] Connections [yellow]i[white] Interfaces [yellow]Enter[white] Expand/Details [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+	historyKeyHints = "[yellow]H[white] Return [yellow]i[white] Interfaces [yellow]Tab[white] List/Timeline [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]h[white] Help [yellow]q[white] Quit"
+
+	minStackedHeight = 15
+	footerHeight     = 3 // Status, filter, and key hints.
 )
+
+type dashboardLayout struct {
+	*tview.Flex
+	traffic *trafficView
+}
+
+func (layout *dashboardLayout) Draw(screen tcell.Screen) {
+	_, _, _, height := layout.GetRect()
+	trafficHeight := 1
+	if height >= minStackedHeight+footerHeight+2 {
+		trafficHeight = 2
+	} else if height <= footerHeight+1 {
+		trafficHeight = 0
+	}
+	layout.ResizeItem(layout.traffic, trafficHeight, 0)
+	layout.Flex.Draw(screen)
+}
 
 type connectionLayout struct {
 	*tview.Flex
@@ -26,7 +46,9 @@ type connectionLayout struct {
 func (layout *connectionLayout) Draw(screen tcell.Screen) {
 	_, _, width, height := layout.GetRect()
 	const minDetailsWidth = 36
-	stacked := height >= 15 && (width < 120 || width < layout.tableWidth+minDetailsWidth)
+	// Allow for the extra row used by the compact strip at the stacking
+	// threshold so the strip alone cannot force the panes side by side.
+	stacked := height >= minStackedHeight-1 && (width < 120 || width < layout.tableWidth+minDetailsWidth)
 	if stacked {
 		layout.SetDirection(tview.FlexRow)
 		layout.ResizeItem(layout.listPane, 0, 1)
@@ -126,14 +148,16 @@ func (v *View) Init() {
 		tables:   [2]*tview.Table{v.table, v.vanishedTable},
 	}
 
+	traffic := &trafficView{Box: tview.NewBox(), traffic: &v.app.traffic}
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(v.mainLayout, 0, 1, true).
+		AddItem(traffic, 2, 0, false).
 		AddItem(v.baselineView, 1, 0, false).
 		AddItem(v.filterInput, 1, 0, false).
 		AddItem(v.hintView, 1, 0, false)
 
-	v.pages.AddPage("main", layout, true, true)
+	v.pages.AddPage("main", &dashboardLayout{Flex: layout, traffic: traffic}, true, true)
 	v.app.tviewApp.SetRoot(v.pages, true).EnableMouse(true)
 	v.Refresh()
 }

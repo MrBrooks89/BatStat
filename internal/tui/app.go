@@ -1,13 +1,17 @@
 package tui
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/MrBrooks89/BatStat/internal/conn"
 	"github.com/MrBrooks89/BatStat/internal/models"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+const refreshInterval = 3 * time.Second
 
 type App struct {
 	tviewApp *tview.Application
@@ -21,6 +25,7 @@ type App struct {
 	// These fields are only used on the UI thread.
 	ignoreRefreshThroughID uint64
 	awaitingLiveData       bool
+	traffic                interfaceTraffic
 }
 
 func NewApp() *App {
@@ -40,6 +45,22 @@ func (a *App) Run() error {
 	defer close(done)
 	go a.refreshDataLoop(done)
 
+	trafficContext, cancelTraffic := context.WithCancel(context.Background())
+	defer cancelTraffic()
+	updates := make(chan interfaceReading, trafficSlots)
+	var startSampler sync.Once
+	a.tviewApp.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+		startSampler.Do(func() { go sampleInterfaceTraffic(trafficContext, screen, updates) })
+		for {
+			select {
+			case reading := <-updates:
+				a.traffic.record(reading.at, reading.counters)
+			default:
+				return false
+			}
+		}
+	})
+
 	return a.tviewApp.Run()
 }
 
@@ -50,7 +71,7 @@ func (a *App) Stop() {
 func (a *App) refreshDataLoop(done <-chan struct{}) {
 	a.loadData()
 
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
 
 	for {
