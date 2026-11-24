@@ -40,7 +40,9 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - Auto-refreshes the connection list every few seconds  
 - Press `Space` to pause or resume monitoring. While paused, you can browse, filter, sort, and export the last displayed connections with `e`.
 - Live user and command details and process termination become available again after the first successful refresh on resume.
-- Real-time filtering (`/` to filter by process name, PID, status, or address)  
+- Live rows show `NEW` for one successful refresh when they were absent from the previous snapshot. The Recently vanished list keeps up to 20 entries for three successful refreshes. Press `Tab` to switch lists or `v` to collapse or expand the vanished list.
+- Press `B` to pin the full displayed connection snapshot for this session. Press `b` to switch between the previous-refresh and pinned comparisons. The pinned view shows all differences from the pin, and the filter applies to both lists.
+- Real-time filtering (`/` to filter by process name, status, address family, or address)
 - Color-coded connection states (`ESTABLISHED`, `LISTEN`, `CLOSE_WAIT`, etc.)  
 
 ### 📑 Two-Pane Layout  
@@ -57,7 +59,7 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - `p` → Ping remote address in a live modal overlay  
 
 ### 📂 Export to CSV  
-- `e` → Default export visible connections to `BatStat_export.csv` or Custom choose the path and file name 
+- `e` exports filtered live connections to `batstat_export.csv` or a custom path.
 
 ### ❓ In-App Help Panel  
 - `h` → Toggle a detailed, colorful panel with all keybindings  

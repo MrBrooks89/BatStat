@@ -19,6 +19,14 @@ func (a *App) setKeybindings() {
 		if a.view.filterInput.HasFocus() {
 			return event
 		}
+		if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
+			if a.view.vanishedVisible && !a.view.vanishedTable.HasFocus() {
+				a.tviewApp.SetFocus(a.view.vanishedTable)
+			} else {
+				a.tviewApp.SetFocus(a.view.table)
+			}
+			return nil
+		}
 
 		switch event.Rune() {
 		case 'q':
@@ -44,6 +52,24 @@ func (a *App) setKeybindings() {
 				a.view.SetStatusMessage("Press Space to resume before refreshing.")
 			} else {
 				go a.loadData()
+			}
+			return nil
+		case 'v':
+			a.view.vanishedCollapsed = !a.view.vanishedCollapsed
+			a.view.Refresh()
+			return nil
+		case 'B':
+			if a.state.pinSnapshot() {
+				a.view.Refresh()
+			} else {
+				a.view.SetStatusMessage("No snapshot available to pin.")
+			}
+			return nil
+		case 'b':
+			if a.state.togglePinned() {
+				a.view.Refresh()
+			} else {
+				a.view.SetStatusMessage("Press B to pin the current snapshot first.")
 			}
 			return nil
 		case 'k':
@@ -74,15 +100,17 @@ func (a *App) setKeybindings() {
 		return event
 	})
 
-	a.view.table.SetSelectionChangedFunc(func(_, _ int) {
-		a.view.updateDetailsView()
-	})
-
-	a.view.table.SetSelectedFunc(func(row, column int) {
-		if conn := a.view.GetSelectedConnection(); conn != nil {
-			a.view.showDetailsModal(*conn)
-		}
-	})
+	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable} {
+		table.SetFocusFunc(a.view.updateDetailsView)
+		table.SetSelectionChangedFunc(func(_, _ int) {
+			a.view.updateDetailsView()
+		})
+		table.SetSelectedFunc(func(_, _ int) {
+			if conn, vanished := a.view.selectedConnectionDetails(); conn != nil {
+				a.view.showDetailsModal(*conn, vanished)
+			}
+		})
+	}
 
 	a.view.filterInput.SetChangedFunc(func(text string) {
 		a.state.SetFilterText(text)

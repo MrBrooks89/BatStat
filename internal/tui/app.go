@@ -101,12 +101,13 @@ func (a *App) loadData() {
 	if err != nil {
 		return
 	}
+	capturedAt := time.Now()
 	a.tviewApp.QueueUpdateDraw(func() {
-		a.applyRefresh(id, conns)
+		a.applyRefresh(id, conns, capturedAt)
 	})
 }
 
-func (a *App) applyRefresh(id uint64, conns []models.Connection) {
+func (a *App) applyRefresh(id uint64, conns []models.Connection, capturedAt time.Time) {
 	if id <= a.ignoreRefreshThroughID {
 		return
 	}
@@ -114,12 +115,6 @@ func (a *App) applyRefresh(id uint64, conns []models.Connection) {
 	a.awaitingLiveData = false
 	a.view.detailsView.SetTitle(" Details ")
 
-	selectedRow, _ := a.view.table.GetSelection()
-	a.state.SetConnections(conns)
+	a.state.SetConnections(conns, capturedAt)
 	a.view.Refresh()
-	if selectedRow < a.view.table.GetRowCount() {
-		a.view.table.Select(selectedRow, 0)
-	} else if a.view.table.GetRowCount() > 1 {
-		a.view.table.Select(1, 0)
-	}
 }
