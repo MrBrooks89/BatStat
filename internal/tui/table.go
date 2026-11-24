@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 const (
 	liveTableBorders     = true
 	vanishedTableBorders = false
+	firstEndpointColumn  = 3
 )
 
 var connectionHeaders = [...]string{"No", "Process", "PID", "Status", "Family", "Type", "Local Addr", "Remote Addr"}
@@ -47,11 +49,7 @@ func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.
 	if v.vanishedCollapsed && len(vanished) > 0 {
 		label += " · collapsed"
 	}
-	baseline += "  |  " + label
-	if filterProblem != "" {
-		baseline = "Filter error: " + filterProblem + "  |  " + baseline
-	}
-	v.baselineView.SetText(baseline)
+	v.setListStatus(baseline+"  |  "+label, filterProblem)
 
 	v.vanishedVisible = len(vanished) > 0 && !v.vanishedCollapsed
 	table := v.vanishedTable
@@ -76,11 +74,7 @@ func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.
 func setConnectionHeaders(table *tview.Table, sortColumn int, ascending bool) {
 	for i, header := range connectionHeaders {
 		if i == sortColumn {
-			if ascending {
-				header += " [yellow]▲"
-			} else {
-				header += " [yellow]▼"
-			}
+			header = sortHeader(header, ascending)
 		}
 		table.SetCell(0, i, tview.NewTableCell(header).
 			SetTextColor(tview.Styles.SecondaryTextColor).
@@ -89,11 +83,20 @@ func setConnectionHeaders(table *tview.Table, sortColumn int, ascending bool) {
 	}
 }
 
-func addConnectionRow(table *tview.Table, row int, c models.Connection, number string) {
-	items := [...]string{
-		number, truncate(c.ProcessName, 30), strconv.FormatInt(int64(c.Pid), 10),
-		displayStatus(c), c.Family, c.Type, c.Laddr, c.Raddr,
+func sortHeader(header string, ascending bool) string {
+	if ascending {
+		return header + " [yellow]▲"
 	}
+	return header + " [yellow]▼"
+}
+
+func endpointFields(c models.Connection) [5]string {
+	return [5]string{displayStatus(c), c.Family, c.Type, tview.Escape(c.Laddr), tview.Escape(c.Raddr)}
+}
+
+func addConnectionRow(table *tview.Table, row int, c models.Connection, number string) {
+	fields := endpointFields(c)
+	items := append([]string{number, truncate(c.ProcessName, 30), strconv.FormatInt(int64(c.Pid), 10)}, fields[:]...)
 	for column, item := range items {
 		table.SetCell(row, column, tview.NewTableCell(item).
 			SetExpansion(1).
@@ -131,7 +134,7 @@ func clampConnectionSelection(table *tview.Table) {
 }
 
 func (v *View) selectedConnectionDetails() (*models.Connection, bool) {
-	if v.vanishedTable.HasFocus() {
+	if !v.showProcesses && v.vanishedTable.HasFocus() {
 		return v.selectedVanishedConnection(), true
 	}
 	return v.GetSelectedConnection(), false
@@ -140,6 +143,13 @@ func (v *View) selectedConnectionDetails() (*models.Connection, bool) {
 func (v *View) updateDetailsView() {
 	c, vanished := v.selectedConnectionDetails()
 	if c == nil {
+		if v.showProcesses {
+			if group := v.processes.selectedRow().group; group != nil {
+				v.detailsView.SetText(fmt.Sprintf("[yellow]%s[white]\nPID: %s\nTotal: %d\nEstablished: %d\nListeners: %d\n\nEnter to expand or collapse.",
+					tview.Escape(group.label()), cmp.Or(group.pidLabel(), "Unavailable"), len(group.connections), group.established, group.listeners))
+				return
+			}
+		}
 		v.detailsView.Clear().SetText(" [gray]No connection selected")
 		return
 	}

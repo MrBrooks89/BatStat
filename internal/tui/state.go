@@ -113,10 +113,13 @@ func (s *AppState) ToggleSortOrder() {
 	s.updateDisplay()
 }
 
-func (s *AppState) CycleSortColumn() {
+func (s *AppState) CycleSortColumn(firstColumn int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.sortColumn = (s.sortColumn % 7) + 1
+	s.sortColumn = max(s.sortColumn+1, firstColumn)
+	if s.sortColumn >= len(connectionHeaders) {
+		s.sortColumn = firstColumn
+	}
 	s.sortAsc = true
 	s.updateDisplay()
 }
