@@ -34,7 +34,7 @@ The main view provides a **two-pane layout**:
 
 This design makes it easy to monitor and analyze network activity efficiently.  
 
-<img width="2512" height="1357" alt="image" src="https://github.com/user-attachments/assets/369f3280-c83d-4180-8bf0-3b1e3177b38d" />
+![BatStat showing sample live and recently vanished connections, a Details pane, and RX and TX traffic graphs](docs/images/batstat-main.png)
 
 ---
 
