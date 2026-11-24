@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
 func (v *View) populateTable() {
@@ -59,24 +59,34 @@ func (v *View) updateHeaderIndicator() {
 	}
 }
 
-func (v *View) updateDetailsView(row int) {
+func (v *View) updateDetailsView() {
 	c := v.GetSelectedConnection()
 	if c == nil {
 		v.detailsView.Clear().SetText(" [gray]No connection selected")
 		return
 	}
-	details := models.GetDetailedInfo(c.Pid)
+	v.detailsView.SetText(v.connectionDetails(*c))
+}
 
+func (v *View) connectionDetails(c models.Connection) string {
 	var builder strings.Builder
 	builder.WriteString(fmt.Sprintf("[yellow]Process:[white]    %s\n", c.ProcessName))
 	builder.WriteString(fmt.Sprintf("[yellow]PID:[white]        %d\n", c.Pid))
-	builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
+	var details models.DetailedInfo
+	if !v.app.awaitingLiveData {
+		details = models.GetDetailedInfo(c.Pid)
+		builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
+	}
 	builder.WriteString(fmt.Sprintf("[yellow]Status:[white]     %s\n", c.Status))
 	builder.WriteString(fmt.Sprintf("[yellow]Local Addr:[white] %s\n", c.Laddr))
 	builder.WriteString(fmt.Sprintf("[yellow]Remote Addr:[white] %s\n\n", c.Raddr))
-	builder.WriteString(fmt.Sprintf("[yellow]Command:[white]\n%s\n", details.Cmdline))
 
-	v.detailsView.SetText(builder.String())
+	if v.app.awaitingLiveData {
+		builder.WriteString("[gray]Live user and command details return after a refresh.")
+	} else {
+		builder.WriteString(fmt.Sprintf("[yellow]Command:[white]\n%s\n", details.Cmdline))
+	}
+	return builder.String()
 }
 
 func getStatusColor(status string) tcell.Color {

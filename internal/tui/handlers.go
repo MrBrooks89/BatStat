@@ -1,7 +1,6 @@
 package tui
 
 import (
-
 	"github.com/MrBrooks89/BatStat/internal/actions"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -25,6 +24,13 @@ func (a *App) setKeybindings() {
 		case 'q':
 			a.Stop()
 			return nil
+		case ' ':
+			resume := a.paused
+			a.setPaused(!resume)
+			if resume {
+				go a.loadData()
+			}
+			return nil
 		case 's':
 			a.state.CycleSortColumn()
 			a.view.Refresh()
@@ -34,13 +40,17 @@ func (a *App) setKeybindings() {
 			a.view.Refresh()
 			return nil
 		case 'r':
-			go a.loadData() 
+			if a.paused {
+				a.view.SetStatusMessage("Press Space to resume before refreshing.")
+			} else {
+				go a.loadData()
+			}
 			return nil
 		case 'k':
-			a.view.showKillConfirmationModal(false) 
+			a.view.showKillConfirmationModal(false)
 			return nil
 		case 'K':
-			a.view.showKillConfirmationModal(true) 
+			a.view.showKillConfirmationModal(true)
 			return nil
 		case 'p':
 			a.view.showPingModal()
@@ -64,8 +74,8 @@ func (a *App) setKeybindings() {
 		return event
 	})
 
-	a.view.table.SetSelectionChangedFunc(func(row, column int) {
-		a.view.updateDetailsView(row)
+	a.view.table.SetSelectionChangedFunc(func(_, _ int) {
+		a.view.updateDetailsView()
 	})
 
 	a.view.table.SetSelectedFunc(func(row, column int) {
