@@ -19,6 +19,8 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]←/→      [white]Scroll table left/right\n")
 	builder.WriteString("[green]Tab      [white]Switch between live and vanished connections\n")
 	builder.WriteString("[green]P        [white]Switch between Connections and Process View\n")
+	builder.WriteString("[green]H        [white]Open Connection History or return to the previous view\n")
+	builder.WriteString("[green]Tab      [white]Switch between the list and timeline in History\n")
 	builder.WriteString("[green]Enter    [white]Expand/collapse a process group or show endpoint details\n\n")
 	builder.WriteString("[::u]Actions[-:-]\n")
 	builder.WriteString("[gray]Process termination requires a live connection snapshot.\n")

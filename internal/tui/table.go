@@ -141,6 +141,10 @@ func (v *View) selectedConnectionDetails() (*models.Connection, bool) {
 }
 
 func (v *View) updateDetailsView() {
+	if v.showHistory {
+		v.updateHistoryDetails()
+		return
+	}
 	c, vanished := v.selectedConnectionDetails()
 	if c == nil {
 		if v.showProcesses {

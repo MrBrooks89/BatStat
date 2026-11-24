@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	keyHints        = "[yellow]P[white] Process View [yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
-	processKeyHints = "[yellow]P[white] Connections [yellow]Enter[white] Expand/Details [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+	keyHints        = "[yellow]H[white] History [yellow]P[white] Process View [yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+	processKeyHints = "[yellow]H[white] History [yellow]P[white] Connections [yellow]Enter[white] Expand/Details [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+	historyKeyHints = "[yellow]H[white] Return [yellow]Tab[white] List/Timeline [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Space[white] Pause/Resume [yellow]h[white] Help [yellow]q[white] Quit"
 )
 
 type connectionLayout struct {
@@ -52,23 +53,26 @@ func (layout *connectionLayout) Draw(screen tcell.Screen) {
 }
 
 type View struct {
-	app                *App
-	table              *tview.Table
-	vanishedTable      *tview.Table
-	connectionLists    *tview.Flex
-	listPages          *tview.Pages
-	mainLayout         *connectionLayout
-	processes          processView
-	showProcesses      bool
-	wasVanishedFocused bool
-	baselineView       *tview.TextView
-	vanishedCollapsed  bool
-	vanishedVisible    bool
-	detailsView        *tview.TextView
-	filterInput        *tview.InputField
-	hintView           *tview.TextView
-	pages              *tview.Pages
-	statusMessageID    uint64
+	app                 *App
+	table               *tview.Table
+	vanishedTable       *tview.Table
+	connectionLists     *tview.Flex
+	listPages           *tview.Pages
+	mainLayout          *connectionLayout
+	processes           processView
+	showProcesses       bool
+	wasVanishedFocused  bool
+	history             historyView
+	showHistory         bool
+	historyFromVanished bool
+	baselineView        *tview.TextView
+	vanishedCollapsed   bool
+	vanishedVisible     bool
+	detailsView         *tview.TextView
+	filterInput         *tview.InputField
+	hintView            *tview.TextView
+	pages               *tview.Pages
+	statusMessageID     uint64
 }
 
 func NewView(app *App) *View {
@@ -80,6 +84,7 @@ func NewView(app *App) *View {
 		SetFixed(1, 0)
 	v.vanishedTable = tview.NewTable().SetBorders(vanishedTableBorders).SetSelectable(true, false).SetFixed(1, 0)
 	v.processes = newProcessView()
+	v.history.table = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0)
 	v.baselineView = tview.NewTextView()
 
 	details := tview.NewTextView()
@@ -110,7 +115,8 @@ func (v *View) Init() {
 		AddItem(v.vanishedTable, 0, 0, false)
 	v.listPages = tview.NewPages().
 		AddPage("connections", v.connectionLists, true, true).
-		AddPage("processes", v.processes.table, true, false)
+		AddPage("processes", v.processes.table, true, false).
+		AddPage("history", v.history.table, true, false)
 	mainFlex := tview.NewFlex().
 		AddItem(v.listPages, 0, 1, true).
 		AddItem(v.detailsView, 0, 1, false)
@@ -133,13 +139,18 @@ func (v *View) Init() {
 }
 
 func (v *View) Refresh() {
-	live, vanished, pinTime := v.app.state.displayedRows()
 	listeningOnly, problem := v.app.state.filterStatus()
 	label := "Filter"
 	if listeningOnly {
 		label = "Listening only | " + label
 	}
 	v.filterInput.SetLabel(label + ": ")
+	if v.showHistory {
+		v.populateHistory(problem)
+		v.updateDetailsView()
+		return
+	}
+	live, vanished, pinTime := v.app.state.displayedRows()
 	if v.showProcesses {
 		v.populateProcesses(live, problem)
 		v.updateDetailsView()
@@ -155,6 +166,9 @@ func (v *View) Refresh() {
 }
 
 func (v *View) GetSelectedConnection() *models.Connection {
+	if v.showHistory {
+		return nil
+	}
 	if v.showProcesses {
 		return v.processes.selectedRow().connection
 	}
@@ -173,35 +187,49 @@ func (v *View) toggleProcessView() {
 	v.showProcesses = !v.showProcesses
 	if v.showProcesses {
 		v.wasVanishedFocused = v.vanishedTable.HasFocus()
-		v.mainLayout.tables = [2]*tview.Table{v.processes.table}
-		v.listPages.SwitchToPage("processes")
-	} else {
-		v.mainLayout.tables = [2]*tview.Table{v.table, v.vanishedTable}
-		v.listPages.SwitchToPage("connections")
 	}
+	v.switchListPage(!v.showProcesses && v.wasVanishedFocused)
+}
+
+func (v *View) toggleHistoryView() {
+	v.showHistory = !v.showHistory
+	if v.showHistory {
+		v.historyFromVanished = v.vanishedTable.HasFocus()
+	} else {
+		v.history.releaseRows()
+		v.detailsView.ScrollToBeginning()
+	}
+	v.switchListPage(!v.showHistory && v.historyFromVanished)
+}
+
+func (v *View) activeList() (page string, tables [2]*tview.Table, hints string) {
+	switch {
+	case v.showHistory:
+		return "history", [2]*tview.Table{v.history.table}, historyKeyHints
+	case v.showProcesses:
+		return "processes", [2]*tview.Table{v.processes.table}, processKeyHints
+	default:
+		return "connections", [2]*tview.Table{v.table, v.vanishedTable}, keyHints
+	}
+}
+
+func (v *View) switchListPage(preferVanished bool) {
+	page, tables, hints := v.activeList()
+	v.mainLayout.tables = tables
+	v.listPages.SwitchToPage(page)
 	v.statusMessageID++
-	v.hintView.SetText(v.currentKeyHints())
+	v.hintView.SetText(hints)
 	v.Refresh()
-	if !v.showProcesses && v.wasVanishedFocused && v.vanishedVisible {
-		v.app.tviewApp.SetFocus(v.vanishedTable)
-	} else {
-		v.focusActiveTable()
+	focus := tables[0]
+	if preferVanished && tables[1] == v.vanishedTable && v.vanishedVisible {
+		focus = v.vanishedTable
 	}
+	v.app.tviewApp.SetFocus(focus)
 }
 
 func (v *View) focusActiveTable() {
-	if v.showProcesses {
-		v.app.tviewApp.SetFocus(v.processes.table)
-	} else {
-		v.app.tviewApp.SetFocus(v.table)
-	}
-}
-
-func (v *View) currentKeyHints() string {
-	if v.showProcesses {
-		return processKeyHints
-	}
-	return keyHints
+	_, tables, _ := v.activeList()
+	v.app.tviewApp.SetFocus(tables[0])
 }
 
 func (v *View) setListStatus(status, filterProblem string) {
@@ -247,7 +275,8 @@ func (v *View) SetStatusMessage(message string) {
 	time.AfterFunc(3*time.Second, func() {
 		v.app.tviewApp.QueueUpdateDraw(func() {
 			if id == v.statusMessageID {
-				v.hintView.SetText(v.currentKeyHints())
+				_, _, hints := v.activeList()
+				v.hintView.SetText(hints)
 			}
 		})
 	})

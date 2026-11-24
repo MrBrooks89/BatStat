@@ -20,6 +20,14 @@ func (a *App) setKeybindings() {
 			return event
 		}
 		if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyBacktab {
+			if a.view.showHistory {
+				if a.view.detailsView.HasFocus() {
+					a.view.focusActiveTable()
+				} else {
+					a.tviewApp.SetFocus(a.view.detailsView)
+				}
+				return nil
+			}
 			if a.view.showProcesses {
 				return nil
 			}
@@ -29,6 +37,13 @@ func (a *App) setKeybindings() {
 				a.tviewApp.SetFocus(a.view.table)
 			}
 			return nil
+		}
+		if a.view.showHistory {
+			switch event.Rune() {
+			case 'P', 'B', 'b', 'v', 's', 'S', 'k', 'K', 'p', 'n', 't', 'e':
+				a.view.SetStatusMessage("Press H to return to the previous view for this action.")
+				return nil
+			}
 		}
 		if a.view.showProcesses {
 			switch event.Rune() {
@@ -44,6 +59,9 @@ func (a *App) setKeybindings() {
 		}
 
 		switch event.Rune() {
+		case 'H':
+			a.view.toggleHistoryView()
+			return nil
 		case 'q':
 			a.Stop()
 			return nil
@@ -126,7 +144,7 @@ func (a *App) setKeybindings() {
 		return event
 	})
 
-	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable, a.view.processes.table} {
+	for _, table := range []*tview.Table{a.view.table, a.view.vanishedTable, a.view.processes.table, a.view.history.table} {
 		table.SetFocusFunc(a.view.updateDetailsView)
 		table.SetSelectionChangedFunc(func(_, _ int) {
 			a.view.updateDetailsView()

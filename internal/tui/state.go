@@ -25,6 +25,7 @@ type AppState struct {
 	current          *connectionSnapshot
 	previousMatches  []bool
 	recentlyVanished []recentlyVanished
+	history          connectionHistory
 	pinned           *connectionSnapshot
 	showPinned       bool
 
@@ -43,14 +44,16 @@ func NewAppState() *AppState {
 func (s *AppState) SetConnections(conns []models.Connection, capturedAt time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	var before []models.Connection
 	if s.current != nil {
-		before := s.current.connections
+		before = s.current.connections
 		beforeMatched, afterMatched := matchSnapshots(before, conns)
 		s.previousMatches = afterMatched
 		vanished := unmatchedConnections(before, beforeMatched)
 		added := unmatchedConnections(conns, afterMatched)
 		s.recentlyVanished = updateRecentlyVanished(s.recentlyVanished, vanished, added)
 	}
+	s.history.observe(before, conns, capturedAt)
 	s.current = &connectionSnapshot{connections: slices.Clone(conns), capturedAt: capturedAt}
 	s.updateDisplay()
 }
