@@ -17,6 +17,7 @@ A **terminal user interface (TUI) tool** for monitoring, analyzing, and managing
 - [Installation](#installation)  
 - [Usage](#usage)  
 - [Contributing](#contributing)  
+  - [Release versioning](#release-versioning)
 - [License](#license)  
 
 ---
@@ -71,13 +72,13 @@ This design makes it easy to monitor and analyze network activity efficiently.
 
 Requires **Go 1.25+**.  
 
-Latest verison:
+Install the latest version.
 ```bash
 go install github.com/MrBrooks89/BatStat/cmd/BatStat@latest
 ```
-Or Specific version:
+To pin a version, use its tag.
 ```bash
-go install github.com/MrBrooks89/BatStat/cmd/BatStat@v0.1.0
+go install github.com/MrBrooks89/BatStat/cmd/BatStat@v0.4.1
 ```
 
 Make sure your `GOPATH/bin` is in your `$PATH`:  
@@ -101,6 +102,15 @@ Press `h` at any time for a full list of keybindings.
 PRs are welcome!  
 - Open an issue for bugs or feature requests  
 - Fork and submit a pull request  
+
+### Release versioning
+
+Git tags define BatStat's published versions. In feature and bug-fix PRs, note the recommended release bump. Apply the bump when publishing a release from a tested commit on `main` so one tag can include several PRs.
+
+- Use a minor bump for a release that includes a new feature, such as `v0.4.0` to `v0.5.0`.
+- Use a patch bump for a bug-fix-only release, such as `v0.4.0` to `v0.4.1`.
+
+Before publishing, check the latest tag on GitHub and choose the next version based on the changes since that tag. Push the new tag and verify that it points to the tested commit.
 
 ---
 
