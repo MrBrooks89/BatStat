@@ -10,6 +10,7 @@ A **terminal user interface (TUI) tool** for monitoring, analyzing, and managing
 ## Table of Contents  
 - [Main Interface](#main-interface)  
 - [Features](#features)  
+  - [Interface traffic](#interface-traffic)
   - [Process View](#process-view)
   - [Connection History](#connection-history)
   - [Process Management](#process-management)  
@@ -54,6 +55,12 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - Column sorting:  
   - Press `s` → cycle through sortable columns  
   - Press `S` → toggle ascending/descending order  
+
+### Interface traffic
+
+- The strip shows the selected interface's receive (RX) and transmit (TX) rates over the past minute, sampled every three seconds. The two graphs share a scale. Short terminals show the latest rates on one line.
+- Press `i` to choose an interface in Connections, Process View, or History. BatStat keeps a minute of history for every interface and selects the busiest non-loopback interface over the first measured interval. On a quiet system, it picks the first up, non-loopback interface by name, with loopback as a fallback.
+- Interface traffic stays live when you pause connection monitoring or filter the connection list. Gaps mark missing rate readings, and a disconnected selection stays visible as **Unavailable**.
 
 ### Process View
 

@@ -35,7 +35,7 @@ A difference in a connection's reported state between observations, dated to the
 A label for a history record whose observations could plausibly be attributed to more than one socket.
 
 **Paused monitoring**:
-The mode in which BatStat keeps the last displayed connection snapshot available for inspection and export.
+The mode in which BatStat keeps the last displayed connection snapshot available for inspection and export. Interface traffic continues updating during paused monitoring.
 
 **Snapshot diff**:
 A comparison between two connection snapshots that shows which connections appeared and which vanished.
@@ -69,3 +69,9 @@ The observed connections attributed to one process ID in the current connection 
 
 **Unknown owner group**:
 The connections in the current snapshot whose owning process IDs are unavailable. They can belong to several processes.
+
+**Interface traffic**:
+The receive and transmit rates observed on one network interface, across all traffic carried by that interface.
+
+**Interface traffic history**:
+The interface traffic observed over the most recent minute.

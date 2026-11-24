@@ -13,6 +13,9 @@ func (v *View) IsModalActive() bool {
 
 func (a *App) setKeybindings() {
 	a.tviewApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == trafficUpdateKey {
+			return nil
+		}
 		if a.view.IsModalActive() {
 			return event
 		}
@@ -61,6 +64,9 @@ func (a *App) setKeybindings() {
 		switch event.Rune() {
 		case 'H':
 			a.view.toggleHistoryView()
+			return nil
+		case 'i':
+			a.view.showInterfacePicker()
 			return nil
 		case 'q':
 			a.Stop()
