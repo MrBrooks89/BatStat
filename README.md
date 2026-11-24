@@ -42,7 +42,8 @@ This design makes it easy to monitor and analyze network activity efficiently.
 - Live user and command details and process termination become available again after the first successful refresh on resume.
 - Live rows show `NEW` for one successful refresh when they were absent from the previous snapshot. The Recently vanished list keeps up to 20 entries for three successful refreshes. Press `Tab` to switch lists or `v` to collapse or expand the vanished list.
 - Press `B` to pin the full displayed connection snapshot for this session. Press `b` to switch between the previous-refresh and pinned comparisons. The pinned view shows all differences from the pin, and the filter applies to both lists.
-- Real-time filtering (`/` to filter by process name, status, address family, or address)
+- Press `/` to search process names, states, address families, and addresses. Combine exact filters such as `pid:1234 proto:tcp state:listen` with each other or with search text.
+- Press `L` to toggle **Listening only** alongside the current filter. TCP listeners are marked **Loopback** or **All interfaces** when bound to a loopback or wildcard address for their address family.
 - Color-coded connection states (`ESTABLISHED`, `LISTEN`, `CLOSE_WAIT`, etc.)  
 
 ### 📑 Two-Pane Layout  

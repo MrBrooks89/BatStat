@@ -31,7 +31,7 @@ func (v *View) populateLiveTable(live []connectionRow, pinned bool) {
 	clampConnectionSelection(table)
 }
 
-func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.Time) {
+func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.Time, filterProblem string) {
 	title := "Recently vanished"
 	baseline := "Baseline: Previous refresh"
 	if !pinTime.IsZero() {
@@ -42,7 +42,11 @@ func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.
 	if v.vanishedCollapsed && len(vanished) > 0 {
 		label += " · collapsed"
 	}
-	v.baselineView.SetText(baseline + "  |  " + label)
+	baseline += "  |  " + label
+	if filterProblem != "" {
+		baseline = "Filter error: " + filterProblem + "  |  " + baseline
+	}
+	v.baselineView.SetText(baseline)
 
 	v.vanishedVisible = len(vanished) > 0 && !v.vanishedCollapsed
 	table := v.vanishedTable
@@ -83,7 +87,7 @@ func setConnectionHeaders(table *tview.Table, sortColumn int, ascending bool) {
 func addConnectionRow(table *tview.Table, row int, c models.Connection, number string) {
 	items := [...]string{
 		number, c.ProcessName, strconv.FormatInt(int64(c.Pid), 10),
-		c.Status, c.Family, c.Type, c.Laddr, c.Raddr,
+		displayStatus(c), c.Family, c.Type, c.Laddr, c.Raddr,
 	}
 	for column, item := range items {
 		table.SetCell(row, column, tview.NewTableCell(truncate(item, 30)).
@@ -124,21 +128,34 @@ func (v *View) connectionDetails(c models.Connection, vanished bool) string {
 	builder.WriteString(fmt.Sprintf("[yellow]Process:[white]    %s\n", c.ProcessName))
 	builder.WriteString(fmt.Sprintf("[yellow]PID:[white]        %d\n", c.Pid))
 	live := !vanished && !v.app.awaitingLiveData
-	var details models.DetailedInfo
-	if live {
-		details = models.GetDetailedInfo(c.Pid)
-		builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
-	}
-	builder.WriteString(fmt.Sprintf("[yellow]Status:[white]     %s\n", c.Status))
+	builder.WriteString(fmt.Sprintf("[yellow]Status:[white]     %s\n", displayStatus(c)))
+	builder.WriteString(fmt.Sprintf("[yellow]Family:[white]     %s\n", c.Family))
 	builder.WriteString(fmt.Sprintf("[yellow]Local Addr:[white] %s\n", c.Laddr))
 	builder.WriteString(fmt.Sprintf("[yellow]Remote Addr:[white] %s\n\n", c.Raddr))
 
 	if live {
+		details := models.GetDetailedInfo(c.Pid)
+		builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
 		builder.WriteString(fmt.Sprintf("[yellow]Command:[white]\n%s\n", details.Cmdline))
 	} else if !vanished {
 		builder.WriteString("[gray]Live user and command details return after a refresh.")
 	}
 	return builder.String()
+}
+
+func displayStatus(c models.Connection) string {
+	if !isTCPListener(c) {
+		return c.Status
+	}
+	addr := c.LocalIP()
+	switch {
+	case addr.IsLoopback():
+		return c.Status + " · Loopback"
+	case addr.IsUnspecified():
+		return c.Status + " · All interfaces"
+	default:
+		return c.Status
+	}
 }
 
 func getStatusColor(status string) tcell.Color {

@@ -9,7 +9,21 @@ import (
 	"github.com/rivo/tview"
 )
 
-const keyHints = "[yellow]Space[white] Pause/Resume [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]/[white] Filter [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+const keyHints = "[yellow]Space[white] Pause/Resume [yellow]/[white] Filter [yellow]L[white] Listening only [yellow]Tab[white] Switch lists [yellow]v[white] Toggle vanished [yellow]B/b[white] Pin/Switch baseline [yellow]e[white] Export [yellow]h[white] Help [yellow]q[white] Quit"
+
+type connectionLayout struct {
+	*tview.Flex
+}
+
+func (layout *connectionLayout) Draw(screen tcell.Screen) {
+	_, _, width, height := layout.GetRect()
+	// Stack the panes when the tables need more width and there is room below.
+	direction := tview.FlexColumn
+	if width < 120 && height >= 15 {
+		direction = tview.FlexRow
+	}
+	layout.Flex.SetDirection(direction).Draw(screen)
+}
 
 type View struct {
 	app               *App
@@ -68,7 +82,7 @@ func (v *View) Init() {
 
 	layout := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(mainFlex, 0, 1, true).
+		AddItem(&connectionLayout{mainFlex}, 0, 1, true).
 		AddItem(v.baselineView, 1, 0, false).
 		AddItem(v.filterInput, 1, 0, false).
 		AddItem(v.hintView, 1, 0, false)
@@ -80,8 +94,14 @@ func (v *View) Init() {
 
 func (v *View) Refresh() {
 	live, vanished, pinTime := v.app.state.displayedRows()
+	listeningOnly, problem := v.app.state.filterStatus()
+	label := "Filter"
+	if listeningOnly {
+		label = "Listening only | " + label
+	}
+	v.filterInput.SetLabel(label + ": ")
 	v.populateLiveTable(live, !pinTime.IsZero())
-	v.populateVanishedTable(vanished, pinTime)
+	v.populateVanishedTable(vanished, pinTime, problem)
 	v.updateDetailsView()
 }
 
