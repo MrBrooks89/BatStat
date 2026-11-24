@@ -38,6 +38,8 @@ This design makes it easy to monitor and analyze network activity efficiently.
 
 ### 🔴 Live Monitoring  
 - Auto-refreshes the connection list every few seconds  
+- Press `Space` to pause or resume monitoring. While paused, you can browse, filter, sort, and export the last displayed connections with `e`.
+- Live user and command details and process termination become available again after the first successful refresh on resume.
 - Real-time filtering (`/` to filter by process name, PID, status, or address)  
 - Color-coded connection states (`ESTABLISHED`, `LISTEN`, `CLOSE_WAIT`, etc.)  
 

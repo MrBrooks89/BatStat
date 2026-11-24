@@ -19,6 +19,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]←/→      [white]Scroll table left/right\n")
 	builder.WriteString("[green]Enter    [white]Show detailed info for selection\n\n")
 	builder.WriteString("[::u]Actions[-:-]\n")
+	builder.WriteString("[gray]Process termination requires a live connection snapshot.\n")
 	builder.WriteString("[green]k        [white]Kill selected process (Graceful)\n")
 	builder.WriteString("[green]K        [white]Force Kill selected process (SIGKILL)\n")
 	builder.WriteString("[green]p        [white]Ping remote address of selection\n")
@@ -31,7 +32,8 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]S        [white]Toggle sort order (ASC/DESC)\n\n")
 	builder.WriteString("[::u]Application[-:-]\n")
 	builder.WriteString("[green]h        [white]Show/Hide this help panel\n")
-	builder.WriteString("[green]r        [white]Refresh connections manually\n")
+	builder.WriteString("[green]Space    [white]Pause or resume connection monitoring\n")
+	builder.WriteString("[green]r        [white]Refresh connections manually while live\n")
 	builder.WriteString("[green]q        [white]Quit BatStat\n")
 
 	textView := tview.NewTextView().SetDynamicColors(true).SetText(builder.String())
@@ -56,7 +58,7 @@ func (v *View) showHelpModal() {
 func (v *View) showPingModal() {
 	c := v.GetSelectedConnection()
 	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
-		return 
+		return
 	}
 	ip := strings.Split(c.Raddr, ":")[0]
 
@@ -73,7 +75,7 @@ func (v *View) showPingModal() {
 
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			cancel() 
+			cancel()
 			v.pages.RemovePage("ping_modal")
 			v.app.tviewApp.SetFocus(v.table)
 			return nil
@@ -98,6 +100,10 @@ func (v *View) showPingModal() {
 }
 
 func (v *View) showKillConfirmationModal(force bool) {
+	if v.app.awaitingLiveData {
+		v.SetStatusMessage("Resume and wait for a refresh before killing a process.")
+		return
+	}
 	c := v.GetSelectedConnection()
 	if c == nil || c.Pid == 0 {
 		return
@@ -126,17 +132,7 @@ func (v *View) showKillConfirmationModal(force bool) {
 }
 
 func (v *View) showDetailsModal(c models.Connection) {
-	details := models.GetDetailedInfo(c.Pid)
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("[yellow]Process:[white]    %s\n", c.ProcessName))
-	builder.WriteString(fmt.Sprintf("[yellow]PID:[white]        %d\n", c.Pid))
-	builder.WriteString(fmt.Sprintf("[yellow]User:[white]       %s\n\n", details.Username))
-	builder.WriteString(fmt.Sprintf("[yellow]Status:[white]     %s\n", c.Status))
-	builder.WriteString(fmt.Sprintf("[yellow]Local Addr:[white] %s\n", c.Laddr))
-	builder.WriteString(fmt.Sprintf("[yellow]Remote Addr:[white] %s\n\n", c.Raddr))
-	builder.WriteString(fmt.Sprintf("[yellow]Command:[white]\n%s\n", details.Cmdline))
-
-	textView := tview.NewTextView().SetDynamicColors(true).SetText(builder.String())
+	textView := tview.NewTextView().SetDynamicColors(true).SetText(v.connectionDetails(c))
 	textView.SetBorder(true).SetBorderPadding(1, 1, 1, 1)
 
 	frame := tview.NewFrame(textView).
@@ -158,7 +154,7 @@ func (v *View) showDetailsModal(c models.Connection) {
 func (v *View) showNslookupModal() {
 	c := v.GetSelectedConnection()
 	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
-		return 
+		return
 	}
 	host := strings.Split(c.Raddr, ":")[0]
 
@@ -175,7 +171,7 @@ func (v *View) showNslookupModal() {
 
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			cancel() 
+			cancel()
 			v.pages.RemovePage("nslookup_modal")
 			v.app.tviewApp.SetFocus(v.table)
 			return nil
@@ -202,7 +198,7 @@ func (v *View) showNslookupModal() {
 func (v *View) showTracerouteModal() {
 	c := v.GetSelectedConnection()
 	if c == nil || c.Raddr == "" || strings.HasPrefix(c.Raddr, ":") {
-		return 
+		return
 	}
 	host := strings.Split(c.Raddr, ":")[0]
 
@@ -219,7 +215,7 @@ func (v *View) showTracerouteModal() {
 
 	frame.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			cancel() 
+			cancel()
 			v.pages.RemovePage("traceroute_modal")
 			v.app.tviewApp.SetFocus(v.table)
 			return nil

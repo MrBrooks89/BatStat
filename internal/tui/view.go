@@ -4,18 +4,21 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/MrBrooks89/BatStat/internal/models"
 )
 
+const keyHints = "[yellow]Space[white] Pause/Resume [yellow]/[white]Filter [yellow]s/S[white]Sort [yellow]k/K[white]Kill [yellow]p[white]Ping [yellow]t[white]Traceroute [yellow]n[white]Nslookup [yellow]e[white]Export [yellow]h[white]Help [yellow]q[white]Quit"
+
 type View struct {
-	app         *App
-	table       *tview.Table
-	detailsView *tview.TextView
-	filterInput *tview.InputField
-	hintView    *tview.TextView
-	pages       *tview.Pages
+	app             *App
+	table           *tview.Table
+	detailsView     *tview.TextView
+	filterInput     *tview.InputField
+	hintView        *tview.TextView
+	pages           *tview.Pages
+	statusMessageID uint64
 }
 
 func NewView(app *App) *View {
@@ -40,7 +43,7 @@ func NewView(app *App) *View {
 
 	hint := tview.NewTextView()
 	hint.SetDynamicColors(true)
-	hint.SetText("[::b]Keys:[-:-] [yellow]/[white]Filter [yellow]s/S[white]Sort [yellow]k/K[white]Kill [yellow]p[white]Ping [yellow]t[white]Traceroute [yellow]n[white]Nslookup [yellow]e[white]Export [yellow]h[white]Help [yellow]q[white]Quit")
+	hint.SetText(keyHints)
 	v.hintView = hint
 
 	v.pages = tview.NewPages()
@@ -66,8 +69,7 @@ func (v *View) Init() {
 func (v *View) Refresh() {
 	v.populateTable()
 	v.updateHeaderIndicator()
-	selectedRow, _ := v.table.GetSelection()
-	v.updateDetailsView(selectedRow)
+	v.updateDetailsView()
 }
 
 func (v *View) GetSelectedConnection() *models.Connection {
@@ -88,7 +90,7 @@ func (v *View) ShowInfoModal(message string, duration int) {
 		AddButtons([]string{"OK"})
 
 	go func() {
-		<-time.After(time.Duration(duration) * time.Second) 
+		<-time.After(time.Duration(duration) * time.Second)
 		v.app.tviewApp.QueueUpdateDraw(func() {
 			v.pages.RemovePage("info_modal")
 		})
@@ -102,22 +104,23 @@ func (v *View) ShowInfoModal(message string, duration int) {
 }
 
 func (v *View) SetStatusMessage(message string) {
-	originalText := v.hintView.GetText(false)
+	v.statusMessageID++
+	id := v.statusMessageID
 	v.hintView.SetText(fmt.Sprintf("[yellow]Status: [white]%s", message))
 
-	go func() {
-		<-time.After(3 * time.Second) 
+	time.AfterFunc(3*time.Second, func() {
 		v.app.tviewApp.QueueUpdateDraw(func() {
-			v.hintView.SetText(originalText)
+			if id == v.statusMessageID {
+				v.hintView.SetText(keyHints)
+			}
 		})
-	}()
+	})
 }
 
 func (v *View) showInputModal(title, label string, callback func(string)) {
 	inputField := tview.NewInputField().
 		SetLabel(label).
 		SetFieldWidth(40)
-		
 
 	form := tview.NewForm().
 		AddFormItem(inputField).
