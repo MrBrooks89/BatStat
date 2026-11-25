@@ -183,16 +183,16 @@ func (v *View) Refresh() {
 		return
 	}
 	pinned := !pinTime.IsZero()
-	v.liveRows = live
 	if pinned && v.changesOnly {
-		v.liveRows = nil
+		var newRows []connectionRow
 		for _, row := range live {
 			if row.isNew {
-				v.liveRows = append(v.liveRows, row)
+				newRows = append(newRows, row)
 			}
 		}
+		live = newRows
 	}
-	v.populateLiveTable(v.liveRows, pinned)
+	v.populateLiveTable(live, pinned)
 	v.populateVanishedTable(vanished, pinTime, problem)
 	v.mainLayout.tableWidth = max(
 		connectionTableWidth(v.table, liveTableBorders),

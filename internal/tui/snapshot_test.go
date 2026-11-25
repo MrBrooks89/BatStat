@@ -387,6 +387,59 @@ func TestPinnedComparisonChangesOnlyShortcut(t *testing.T) {
 	assertLiveCount(0)
 }
 
+func TestChangesOnlyPreservesSelectedConnection(t *testing.T) {
+	app := NewApp()
+	app.view.Init()
+	app.setKeybindings()
+	app.tviewApp.SetFocus(app.view.table)
+
+	at := time.Unix(1, 0)
+	persistent := models.Connection{ProcessName: "persistent", Laddr: ":8000"}
+	firstNew := models.Connection{ProcessName: "first new", Laddr: ":8001"}
+	secondNew := models.Connection{ProcessName: "second new", Laddr: ":8002"}
+	app.applyRefresh(1, []models.Connection{persistent}, at)
+	processKey(app, tcell.KeyRune, 'B')
+	app.applyRefresh(2, []models.Connection{persistent, firstNew, secondNew}, at.Add(time.Second))
+
+	assertSelection := func(step string, want models.Connection) {
+		t.Helper()
+		if got := app.view.GetSelectedConnection(); got == nil || *got != want {
+			t.Fatalf("selection %s = %+v, want %+v", step, got, want)
+		}
+	}
+	filter := func(query string) {
+		processKey(app, tcell.KeyRune, '/')
+		app.view.filterInput.SetText(query)
+		processKey(app, tcell.KeyEnter, 0)
+	}
+
+	processKey(app, tcell.KeyDown, 0)
+	processKey(app, tcell.KeyDown, 0)
+	assertSelection("before C", secondNew)
+
+	processKey(app, tcell.KeyRune, 'C')
+	assertSelection("after C", secondNew)
+	processKey(app, tcell.KeyRune, 'b')
+	assertSelection("after switching to previous refresh", secondNew)
+	processKey(app, tcell.KeyRune, 'b')
+	assertSelection("after returning to the pin", secondNew)
+
+	filter("second")
+	assertSelection("after filtering out other connections", secondNew)
+	filter("")
+	assertSelection("after clearing the filter", secondNew)
+
+	secondNew.Status = "CLOSE_WAIT"
+	app.applyRefresh(3, []models.Connection{persistent, secondNew, firstNew}, at.Add(2*time.Second))
+	assertSelection("after a refresh reorders the list and changes the state", secondNew)
+	filter("first")
+	assertSelection("after filtering out the selected connection", firstNew)
+	filter("no matches")
+	if got := app.view.GetSelectedConnection(); got != nil {
+		t.Fatalf("selection after filtering out all connections = %+v, want none", got)
+	}
+}
+
 func TestPinnedVanishedListScrollsInShortTerminal(t *testing.T) {
 	app := NewApp()
 	app.view.Init()
