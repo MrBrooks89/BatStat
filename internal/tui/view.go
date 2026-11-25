@@ -77,6 +77,8 @@ func (layout *connectionLayout) Draw(screen tcell.Screen) {
 type View struct {
 	app                 *App
 	table               *tview.Table
+	liveRows            []connectionRow
+	changesOnly         bool
 	vanishedTable       *tview.Table
 	connectionLists     *tview.Flex
 	listPages           *tview.Pages
@@ -180,7 +182,17 @@ func (v *View) Refresh() {
 		v.updateDetailsView()
 		return
 	}
-	v.populateLiveTable(live, !pinTime.IsZero())
+	pinned := !pinTime.IsZero()
+	v.liveRows = live
+	if pinned && v.changesOnly {
+		v.liveRows = nil
+		for _, row := range live {
+			if row.isNew {
+				v.liveRows = append(v.liveRows, row)
+			}
+		}
+	}
+	v.populateLiveTable(v.liveRows, pinned)
 	v.populateVanishedTable(vanished, pinTime, problem)
 	v.mainLayout.tableWidth = max(
 		connectionTableWidth(v.table, liveTableBorders),
@@ -200,11 +212,10 @@ func (v *View) GetSelectedConnection() *models.Connection {
 		return nil
 	}
 	row, _ := v.table.GetSelection()
-	live, _, _ := v.app.state.displayedRows()
-	if row < 1 || row > len(live) {
+	if row < 1 || row > len(v.liveRows) {
 		return nil
 	}
-	return &live[row-1].connection
+	return &v.liveRows[row-1].connection
 }
 
 func (v *View) toggleProcessView() {
@@ -233,8 +244,19 @@ func (v *View) activeList() (page string, tables [2]*tview.Table, hints string) 
 	case v.showProcesses:
 		return "processes", [2]*tview.Table{v.processes.table}, processKeyHints
 	default:
-		return "connections", [2]*tview.Table{v.table, v.vanishedTable}, keyHints
+		hints := keyHints
+		if _, pinned := v.app.state.pinnedComparison(); pinned {
+			hints = "[yellow]C[white] Changes only " + hints
+		}
+		return "connections", [2]*tview.Table{v.table, v.vanishedTable}, hints
 	}
+}
+
+func (v *View) refreshComparison() {
+	_, _, hints := v.activeList()
+	v.statusMessageID++
+	v.hintView.SetText(hints)
+	v.Refresh()
 }
 
 func (v *View) switchListPage(preferVanished bool) {

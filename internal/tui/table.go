@@ -44,6 +44,9 @@ func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.
 	if !pinTime.IsZero() {
 		title = "Vanished since pin"
 		baseline = "Baseline: Pinned at " + pinTime.Format("2006-01-02 15:04:05")
+		if v.changesOnly {
+			baseline = fmt.Sprintf("Pinned at %s  |  New since pin (%d)", pinTime.Format("2006-01-02 15:04:05"), len(v.liveRows))
+		}
 	}
 	label := fmt.Sprintf("%s (%d)", title, len(vanished))
 	if v.vanishedCollapsed && len(vanished) > 0 {
@@ -151,6 +154,13 @@ func (v *View) updateDetailsView() {
 			if group := v.processes.selectedRow().group; group != nil {
 				v.detailsView.SetText(fmt.Sprintf("[yellow]%s[white]\nPID: %s\nTotal: %d\nEstablished: %d\nListeners: %d\n\nEnter to expand or collapse.",
 					tview.Escape(group.label()), cmp.Or(group.pidLabel(), "Unavailable"), len(group.connections), group.established, group.listeners))
+				return
+			}
+		} else if v.changesOnly && len(v.liveRows) == 0 {
+			_, vanished, pinTime := v.app.state.displayedRows()
+			_, filterProblem := v.app.state.filterStatus()
+			if !pinTime.IsZero() && len(vanished) == 0 && filterProblem == "" {
+				v.detailsView.SetText(" [gray]No matching changes since pin")
 				return
 			}
 		}
