@@ -79,18 +79,25 @@ func liveConnectionIndex(live []connectionRow, previousIndex int, selected model
 func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.Time, filterProblem string) {
 	title := "Recently vanished"
 	baseline := "Baseline: Previous refresh"
+	var newCount string
 	if !pinTime.IsZero() {
 		title = "Vanished since pin"
-		baseline = "Baseline: Pinned at " + pinTime.Format("2006-01-02 15:04:05")
+		baseline = "Pinned at " + pinTime.Format("2006-01-02 15:04:05")
 		if v.changesOnly {
-			baseline = fmt.Sprintf("Pinned at %s  |  New since pin (%d)", pinTime.Format("2006-01-02 15:04:05"), len(v.liveRows))
+			newCount = fmt.Sprintf("New since pin (%d)", len(v.liveRows))
+		} else {
+			baseline = "Baseline: " + baseline
 		}
 	}
 	label := fmt.Sprintf("%s (%d)", title, len(vanished))
 	if v.vanishedCollapsed && len(vanished) > 0 {
 		label += " · collapsed"
 	}
-	v.setListStatus(baseline+"  |  "+label, filterProblem)
+	if newCount != "" {
+		v.setListStatus(baseline, filterProblem, newCount, label)
+	} else {
+		v.setListStatus(baseline+statusSeparator+label, filterProblem)
+	}
 
 	v.vanishedVisible = len(vanished) > 0 && !v.vanishedCollapsed
 	table := v.vanishedTable

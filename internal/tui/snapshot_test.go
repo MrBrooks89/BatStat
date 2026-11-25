@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -282,6 +283,54 @@ func TestPinnedComparisonChangesOnly(t *testing.T) {
 	assertRows(app.view.vanishedTable, "app old")
 }
 
+func TestPinnedComparisonStateFilterKeepsSnapshotMatches(t *testing.T) {
+	app := NewApp()
+	app.view.Init()
+	app.setKeybindings()
+
+	at := time.Unix(1, 0)
+	transition := models.Connection{ProcessName: "transition", Type: "TCP", Laddr: ":8000", Status: "ESTABLISHED"}
+	vanished := models.Connection{ProcessName: "vanished", Type: "TCP", Laddr: ":8001", Status: "ESTABLISHED"}
+	added := models.Connection{ProcessName: "added", Type: "TCP", Laddr: ":8002", Status: "CLOSE_WAIT"}
+	app.applyRefresh(1, []models.Connection{transition, vanished}, at)
+	processKey(app, tcell.KeyRune, 'B')
+	transition.Status = "CLOSE_WAIT"
+	app.applyRefresh(2, []models.Connection{transition, added}, at.Add(time.Second))
+	processKey(app, tcell.KeyRune, 'C')
+
+	for _, test := range []struct {
+		query        string
+		wantLive     []string
+		wantVanished []string
+	}{
+		{query: "state:established", wantVanished: []string{"vanished"}},
+		{query: "state:close_wait", wantLive: []string{"added"}},
+	} {
+		t.Run(test.query, func(t *testing.T) {
+			processKey(app, tcell.KeyRune, '/')
+			app.view.filterInput.SetText(test.query)
+			processKey(app, tcell.KeyEnter, 0)
+
+			for _, list := range []struct {
+				name  string
+				table *tview.Table
+				want  []string
+			}{
+				{"live", app.view.table, test.wantLive},
+				{"vanished", app.view.vanishedTable, test.wantVanished},
+			} {
+				var got []string
+				for row := 1; row < list.table.GetRowCount(); row++ {
+					got = append(got, list.table.GetCell(row, 1).Text)
+				}
+				if !reflect.DeepEqual(got, list.want) {
+					t.Errorf("%s rows = %v, want %v", list.name, got, list.want)
+				}
+			}
+		})
+	}
+}
+
 func TestPinnedComparisonChangesOnlyCSV(t *testing.T) {
 	t.Chdir(t.TempDir())
 	app := NewApp()
@@ -387,6 +436,42 @@ func TestPinnedComparisonChangesOnlyShortcut(t *testing.T) {
 	assertLiveCount(0)
 }
 
+func TestPinnedComparisonChangesOnlyStartsOffInFreshSession(t *testing.T) {
+	startSession := func() *App {
+		app := NewApp()
+		app.view.Init()
+		app.setKeybindings()
+
+		at := time.Unix(1, 0)
+		existing := models.Connection{ProcessName: "existing", Laddr: ":8000"}
+		added := models.Connection{ProcessName: "added", Laddr: ":8001"}
+		app.applyRefresh(1, []models.Connection{existing}, at)
+		processKey(app, tcell.KeyRune, 'B')
+		app.applyRefresh(2, []models.Connection{existing, added}, at.Add(time.Second))
+		return app
+	}
+	liveNames := func(app *App) []string {
+		table := app.view.table
+		var names []string
+		for row := 1; row < table.GetRowCount(); row++ {
+			names = append(names, table.GetCell(row, 1).Text)
+		}
+		slices.Sort(names)
+		return names
+	}
+
+	first := startSession()
+	processKey(first, tcell.KeyRune, 'C')
+	if got, want := liveNames(first), []string{"added"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("first session with Changes only enabled: live rows = %v, want %v", got, want)
+	}
+
+	second := startSession()
+	if got, want := liveNames(second), []string{"added", "existing"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fresh session: live rows = %v, want %v", got, want)
+	}
+}
+
 func TestChangesOnlyPreservesSelectedConnection(t *testing.T) {
 	app := NewApp()
 	app.view.Init()
@@ -487,4 +572,64 @@ func TestPinnedVanishedListScrollsInShortTerminal(t *testing.T) {
 	if !strings.Contains(draw(), "vanished-24") {
 		t.Fatal("short terminal should scroll to the final pinned difference")
 	}
+}
+
+func TestPinnedComparisonShowsFilteredCountsInNarrowTerminal(t *testing.T) {
+	app := NewApp()
+	app.view.Init()
+	app.setKeybindings()
+	press := func(key rune) { processKey(app, tcell.KeyRune, key) }
+
+	at := time.Date(2026, 11, 24, 13, 0, 0, 0, time.Local)
+	app.applyRefresh(1, []models.Connection{
+		{ProcessName: "match old", Laddr: ":8000"},
+		{ProcessName: "other old", Laddr: ":8001"},
+	}, at)
+	press('B')
+	app.applyRefresh(2, []models.Connection{
+		{ProcessName: "match new", Laddr: ":8002"},
+		{ProcessName: "other new", Laddr: ":8003"},
+	}, at.Add(time.Second))
+	press('C')
+
+	screen := tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	assertCounts := func(width int, wantNew, wantVanished string) {
+		t.Helper()
+		const height = 24
+		screen.SetSize(width, height)
+		app.view.pages.SetRect(0, 0, width, height)
+		screen.Clear()
+		app.view.pages.Draw(screen)
+		screen.Show()
+
+		cells, columns, rows := screen.GetContents()
+		var rendered strings.Builder
+		for y := range rows {
+			for _, cell := range cells[y*columns : (y+1)*columns] {
+				rendered.WriteString(string(cell.Runes))
+			}
+			rendered.WriteByte('\n')
+		}
+		for _, want := range []string{"Pinned at 2026-11-24 13:00:00", wantNew, wantVanished} {
+			if !strings.Contains(rendered.String(), want) {
+				t.Errorf("%d columns: missing %q from the screen", width, want)
+			}
+		}
+	}
+
+	assertCounts(78, "New since pin (2)", "Vanished since pin (2)")
+	assertCounts(77, "New since pin (2)", "Vanished since pin (2)")
+	assertCounts(52, "New since pin (2)", "Vanished since pin (2)")
+
+	press('/')
+	for _, key := range "match" {
+		press(key)
+	}
+	processKey(app, tcell.KeyEnter, 0)
+	assertCounts(52, "New since pin (1)", "Vanished since pin (1)")
+	assertCounts(77, "New since pin (1)", "Vanished since pin (1)")
 }
