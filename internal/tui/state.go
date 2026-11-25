@@ -81,6 +81,12 @@ func (s *AppState) togglePinned() bool {
 	return true
 }
 
+func (s *AppState) pinnedComparison() (hasPin, active bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.pinned != nil, s.showPinned
+}
+
 func (s *AppState) displayedRows() (live []connectionRow, vanished []models.Connection, pinTime time.Time) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -94,8 +100,12 @@ func (s *AppState) displayedRows() (live []connectionRow, vanished []models.Conn
 func (s *AppState) GetFilteredConnections() []models.Connection {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	conns := make([]models.Connection, len(s.filteredLive))
-	for i, row := range s.filteredLive {
+	return liveConnections(s.filteredLive)
+}
+
+func liveConnections(rows []connectionRow) []models.Connection {
+	conns := make([]models.Connection, len(rows))
+	for i, row := range rows {
 		conns[i] = row.connection
 	}
 	return conns

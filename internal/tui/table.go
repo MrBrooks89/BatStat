@@ -3,6 +3,7 @@ package tui
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,14 @@ var connectionHeaders = [...]string{"No", "Process", "PID", "Status", "Family", 
 
 func (v *View) populateLiveTable(live []connectionRow, pinned bool) {
 	table := v.table
+	previousRow, _ := table.GetSelection()
+	selectedRow := previousRow
+	if previousRow >= 1 && previousRow <= len(v.liveRows) {
+		if index := liveConnectionIndex(live, previousRow-1, v.liveRows[previousRow-1].connection); index >= 0 {
+			selectedRow = index + 1
+		}
+	}
+	v.liveRows = live
 	table.Clear()
 	setConnectionHeaders(table, v.app.state.sortColumn, v.app.state.sortAsc)
 	for i, row := range live {
@@ -35,21 +44,60 @@ func (v *View) populateLiveTable(live []connectionRow, pinned bool) {
 		}
 		addConnectionRow(table, i+1, row.connection, number)
 	}
+	if selectedRow != previousRow {
+		table.Select(selectedRow, 0)
+	}
 	clampConnectionSelection(table)
+}
+
+func liveConnectionIndex(live []connectionRow, previousIndex int, selected models.Connection) int {
+	if previousIndex < len(live) && live[previousIndex].connection == selected {
+		return previousIndex
+	}
+	if index := slices.IndexFunc(live, func(row connectionRow) bool {
+		return row.connection == selected
+	}); index >= 0 {
+		return index
+	}
+
+	// A refresh can change the observed state or process name.
+	match := -1
+	for i, row := range live {
+		candidate := row.connection
+		if candidate.Pid != selected.Pid || endpoints(candidate) != endpoints(selected) ||
+			candidate.Fd != selected.Fd || candidate.HasFileDescriptor() != selected.HasFileDescriptor() {
+			continue
+		}
+		if match >= 0 {
+			return -1 // Multiple rows share the available identity fields.
+		}
+		match = i
+	}
+	return match
 }
 
 func (v *View) populateVanishedTable(vanished []models.Connection, pinTime time.Time, filterProblem string) {
 	title := "Recently vanished"
 	baseline := "Baseline: Previous refresh"
+	var newCount string
 	if !pinTime.IsZero() {
 		title = "Vanished since pin"
-		baseline = "Baseline: Pinned at " + pinTime.Format("2006-01-02 15:04:05")
+		baseline = "Pinned at " + pinTime.Format("2006-01-02 15:04:05")
+		if v.changesOnly {
+			newCount = fmt.Sprintf("New since pin (%d)", len(v.liveRows))
+		} else {
+			baseline = "Baseline: " + baseline
+		}
 	}
 	label := fmt.Sprintf("%s (%d)", title, len(vanished))
 	if v.vanishedCollapsed && len(vanished) > 0 {
 		label += " · collapsed"
 	}
-	v.setListStatus(baseline+"  |  "+label, filterProblem)
+	if newCount != "" {
+		v.setListStatus(baseline, filterProblem, newCount, label)
+	} else {
+		v.setListStatus(baseline+statusSeparator+label, filterProblem)
+	}
 
 	v.vanishedVisible = len(vanished) > 0 && !v.vanishedCollapsed
 	table := v.vanishedTable
@@ -151,6 +199,13 @@ func (v *View) updateDetailsView() {
 			if group := v.processes.selectedRow().group; group != nil {
 				v.detailsView.SetText(fmt.Sprintf("[yellow]%s[white]\nPID: %s\nTotal: %d\nEstablished: %d\nListeners: %d\n\nEnter to expand or collapse.",
 					tview.Escape(group.label()), cmp.Or(group.pidLabel(), "Unavailable"), len(group.connections), group.established, group.listeners))
+				return
+			}
+		} else if v.changesOnly && len(v.liveRows) == 0 {
+			_, vanished, pinTime := v.app.state.displayedRows()
+			_, filterProblem := v.app.state.filterStatus()
+			if !pinTime.IsZero() && len(vanished) == 0 && filterProblem == "" {
+				v.detailsView.SetText(" [gray]No matching changes since pin")
 				return
 			}
 		}

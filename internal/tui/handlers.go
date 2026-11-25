@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/MrBrooks89/BatStat/internal/actions"
+	"github.com/MrBrooks89/BatStat/internal/models"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -43,14 +44,14 @@ func (a *App) setKeybindings() {
 		}
 		if a.view.showHistory {
 			switch event.Rune() {
-			case 'P', 'B', 'b', 'v', 's', 'S', 'k', 'K', 'p', 'n', 't', 'e':
+			case 'P', 'B', 'b', 'C', 'v', 's', 'S', 'k', 'K', 'p', 'n', 't', 'e':
 				a.view.SetStatusMessage("Press H to return to the previous view for this action.")
 				return nil
 			}
 		}
 		if a.view.showProcesses {
 			switch event.Rune() {
-			case 'B', 'b', 'v':
+			case 'B', 'b', 'C', 'v':
 				a.view.SetStatusMessage("Press P for snapshot comparison controls.")
 				return nil
 			case 'k', 'K', 'p', 'n', 't':
@@ -110,15 +111,27 @@ func (a *App) setKeybindings() {
 			return nil
 		case 'B':
 			if a.state.pinSnapshot() {
-				a.view.Refresh()
+				a.view.refreshComparison()
 			} else {
 				a.view.SetStatusMessage("No snapshot available to pin.")
 			}
 			return nil
 		case 'b':
 			if a.state.togglePinned() {
-				a.view.Refresh()
+				a.view.refreshComparison()
 			} else {
+				a.view.SetStatusMessage("Press B to pin the current snapshot first.")
+			}
+			return nil
+		case 'C':
+			hasPin, pinned := a.state.pinnedComparison()
+			switch {
+			case pinned:
+				a.view.changesOnly = !a.view.changesOnly
+				a.view.Refresh()
+			case hasPin:
+				a.view.SetStatusMessage("Press b to return to the pinned comparison.")
+			default:
 				a.view.SetStatusMessage("Press B to pin the current snapshot first.")
 			}
 			return nil
@@ -179,7 +192,12 @@ func (a *App) setKeybindings() {
 	})
 }
 func (a *App) handleExport() {
-	conns := a.state.GetFilteredConnections()
+	var conns []models.Connection
+	if a.view.showProcesses {
+		conns = a.state.GetFilteredConnections()
+	} else {
+		conns = liveConnections(a.view.liveRows)
+	}
 	if len(conns) == 0 {
 		a.view.SetStatusMessage("No connections to export.")
 		return

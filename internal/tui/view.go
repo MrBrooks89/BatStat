@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/MrBrooks89/BatStat/internal/models"
@@ -20,15 +21,40 @@ const (
 
 type dashboardLayout struct {
 	*tview.Flex
-	traffic *trafficView
+	traffic     *trafficView
+	status      *tview.TextView
+	statusParts []string
 }
 
+const statusSeparator = "  |  "
+
 func (layout *dashboardLayout) Draw(screen tcell.Screen) {
-	_, _, _, height := layout.GetRect()
+	_, _, width, height := layout.GetRect()
+	statusHeight := 1
+	if len(layout.statusParts) > 1 {
+		// Wrap between status parts so a count stays with its label.
+		line := layout.statusParts[0]
+		lines := make([]string, 0, len(layout.statusParts))
+		for _, part := range layout.statusParts[1:] {
+			combined := line + statusSeparator + part
+			if tview.TaggedStringWidth(combined) <= width {
+				line = combined
+				continue
+			}
+			lines = append(lines, line)
+			line = part
+		}
+		lines = append(lines, line)
+		statusHeight = len(lines)
+		layout.status.SetText(strings.Join(lines, "\n"))
+	}
+	layout.ResizeItem(layout.status, statusHeight, 0)
+
+	footer := footerHeight + statusHeight - 1
 	trafficHeight := 1
-	if height >= minStackedHeight+footerHeight+2 {
+	if height >= minStackedHeight+footer+2 {
 		trafficHeight = 2
-	} else if height <= footerHeight+1 {
+	} else if height <= footer+1 {
 		trafficHeight = 0
 	}
 	layout.ResizeItem(layout.traffic, trafficHeight, 0)
@@ -77,10 +103,13 @@ func (layout *connectionLayout) Draw(screen tcell.Screen) {
 type View struct {
 	app                 *App
 	table               *tview.Table
+	liveRows            []connectionRow
+	changesOnly         bool
 	vanishedTable       *tview.Table
 	connectionLists     *tview.Flex
 	listPages           *tview.Pages
 	mainLayout          *connectionLayout
+	dashboard           *dashboardLayout
 	processes           processView
 	showProcesses       bool
 	wasVanishedFocused  bool
@@ -157,7 +186,8 @@ func (v *View) Init() {
 		AddItem(v.filterInput, 1, 0, false).
 		AddItem(v.hintView, 1, 0, false)
 
-	v.pages.AddPage("main", &dashboardLayout{Flex: layout, traffic: traffic}, true, true)
+	v.dashboard = &dashboardLayout{Flex: layout, traffic: traffic, status: v.baselineView}
+	v.pages.AddPage("main", v.dashboard, true, true)
 	v.app.tviewApp.SetRoot(v.pages, true).EnableMouse(true)
 	v.Refresh()
 }
@@ -180,7 +210,17 @@ func (v *View) Refresh() {
 		v.updateDetailsView()
 		return
 	}
-	v.populateLiveTable(live, !pinTime.IsZero())
+	pinned := !pinTime.IsZero()
+	if pinned && v.changesOnly {
+		var newRows []connectionRow
+		for _, row := range live {
+			if row.isNew {
+				newRows = append(newRows, row)
+			}
+		}
+		live = newRows
+	}
+	v.populateLiveTable(live, pinned)
 	v.populateVanishedTable(vanished, pinTime, problem)
 	v.mainLayout.tableWidth = max(
 		connectionTableWidth(v.table, liveTableBorders),
@@ -200,11 +240,10 @@ func (v *View) GetSelectedConnection() *models.Connection {
 		return nil
 	}
 	row, _ := v.table.GetSelection()
-	live, _, _ := v.app.state.displayedRows()
-	if row < 1 || row > len(live) {
+	if row < 1 || row > len(v.liveRows) {
 		return nil
 	}
-	return &live[row-1].connection
+	return &v.liveRows[row-1].connection
 }
 
 func (v *View) toggleProcessView() {
@@ -233,8 +272,19 @@ func (v *View) activeList() (page string, tables [2]*tview.Table, hints string) 
 	case v.showProcesses:
 		return "processes", [2]*tview.Table{v.processes.table}, processKeyHints
 	default:
-		return "connections", [2]*tview.Table{v.table, v.vanishedTable}, keyHints
+		hints := keyHints
+		if _, pinned := v.app.state.pinnedComparison(); pinned {
+			hints = "[yellow]C[white] Changes only " + hints
+		}
+		return "connections", [2]*tview.Table{v.table, v.vanishedTable}, hints
 	}
+}
+
+func (v *View) refreshComparison() {
+	_, _, hints := v.activeList()
+	v.statusMessageID++
+	v.hintView.SetText(hints)
+	v.Refresh()
 }
 
 func (v *View) switchListPage(preferVanished bool) {
@@ -256,11 +306,12 @@ func (v *View) focusActiveTable() {
 	v.app.tviewApp.SetFocus(tables[0])
 }
 
-func (v *View) setListStatus(status, filterProblem string) {
+func (v *View) setListStatus(status, filterProblem string, comparisonCounts ...string) {
 	if filterProblem != "" {
-		status = "Filter error: " + filterProblem + "  |  " + status
+		status = "Filter error: " + filterProblem + statusSeparator + status
 	}
-	v.baselineView.SetText(status)
+	v.dashboard.statusParts = append([]string{status}, comparisonCounts...)
+	v.baselineView.SetText(strings.Join(v.dashboard.statusParts, statusSeparator))
 }
 
 func (v *View) selectedVanishedConnection() *models.Connection {

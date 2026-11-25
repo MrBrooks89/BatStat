@@ -31,6 +31,7 @@ func (v *View) showHelpModal() {
 	builder.WriteString("[green]t        [white]Traceroute to remote address of selection\n	")
 	builder.WriteString("[green]/        [white]Filter, e.g. pid:1234 proto:tcp state:listen\n")
 	builder.WriteString("[green]L        [white]Toggle Listening only\n")
+	builder.WriteString("[green]C        [white]Toggle Changes only in the pinned comparison\n")
 	builder.WriteString("[green]e        [white]Export filtered live connections to CSV (with path selection)\n\n")
 	builder.WriteString("[::u]Sorting[-:-]\n")
 	builder.WriteString("[green]s        [white]Cycle through endpoint sort columns\n")
